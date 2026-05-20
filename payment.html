@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=20260418-6">
+<link rel="stylesheet" href="/styles.css?v=20260520-18">
 </head>
 <body data-page="payment">
 <div class="site-shell site-shell-payment">
@@ -57,28 +57,34 @@
                     <span data-i18n="payment.guestLabel"></span>
                     <strong id="paymentGuest"></strong>
                 </div>
-                <div class="summary-line">
+                <div class="summary-line summary-addend summary-addend-first">
+                    <span data-i18n="payment.subtotalLabel"></span>
+                    <strong id="paymentSubtotal"></strong>
+                </div>
+                <div class="summary-line summary-addend">
+                    <span data-i18n="payment.vatLabel"></span>
+                    <strong id="paymentVat"></strong>
+                </div>
+                <div class="summary-total">
                     <span data-i18n="payment.totalLabel"></span>
                     <strong id="paymentTotal"></strong>
                 </div>
             </div>
 
-            <div class="button-row button-row-inline">
-    <a href="/" class="secondary-button link-button" data-i18n="payment.backButton"></a>
-
-    <button id="payNowButton" type="button" class="primary-button" data-i18n="payment.payNow"></button>
-
-    <!-- 👇 NIEUWE KNOP -->
-    <button id="bookWithoutPayment" type="button" class="secondary-button">
-        Boek zonder betaling
-    </button>
-</div>
+            <div class="button-row button-row-inline payment-actions">
+                <a href="/" class="secondary-button link-button" data-i18n="payment.backButton"></a>
+                <button id="bookWithoutPayment" type="button" class="secondary-button" data-i18n="payment.bookWithoutPayment"></button>
+                <button id="payNowButton" type="button" class="primary-button" data-i18n="payment.payNow"></button>
+            </div>
             <div id="paymentStatus" class="inline-status hidden"></div>
+            <div id="expiredActions" class="payment-expired-actions hidden">
+                <a href="/" class="primary-button" data-i18n="payment.expiredAction"></a>
+            </div>
         </section>
     </main>
 </div>
 
-<script src="/site.js?v=20260418-6"></script>
-<script src="/payment.js?v=20260418-3"></script>
+<script src="/site.js?v=20260520-16"></script>
+<script src="/payment.js?v=20260520-10"></script>
 </body>
 </html>

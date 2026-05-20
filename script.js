@@ -1,14 +1,19 @@
 (function () {
     const i18n = window.CSLI18N;
+    const BOOKING_DRAFT_KEY = 'csl-booking-draft';
     const currentMonthKey = formatMonthKey(new Date());
 
     const state = {
         settings: null,
         checkin: '',
         checkout: '',
-        babyBed: false,
-        extraBed: false,
+        adultCount: 2,
+        childCount: 0,
+        babyCount: 0,
+        babyBed: 0,
+        extraBed: 0,
         availability: [],
+        quote: null,
         selectedRoomIds: new Set(),
         calendarMonth: currentMonthKey,
         calendar: null,
@@ -20,8 +25,16 @@
         bookingForm: document.getElementById('bookingForm'),
         stayRange: document.getElementById('stayRange'),
         stayRangeError: document.getElementById('stayRangeError'),
+        adultCount: document.getElementById('adultCount'),
+        childCount: document.getElementById('childCount'),
+        babyCount: document.getElementById('babyCount'),
         babyBed: document.getElementById('babyBed'),
         extraBed: document.getElementById('extraBed'),
+        adultCountError: document.getElementById('adultCountError'),
+        childCountError: document.getElementById('childCountError'),
+        babyCountError: document.getElementById('babyCountError'),
+        babyBedError: document.getElementById('babyBedError'),
+        extraBedError: document.getElementById('extraBedError'),
         availabilityStatus: document.getElementById('availabilityStatus'),
         roomGrid: document.getElementById('roomGrid'),
         roomSelectionError: document.getElementById('roomSelectionError'),
@@ -29,6 +42,8 @@
         guestName: document.getElementById('guestName'),
         guestEmail: document.getElementById('guestEmail'),
         guestPhone: document.getElementById('guestPhone'),
+        guestNifField: document.getElementById('guestNifField'),
+        guestNifNumber: document.getElementById('guestNifNumber'),
         guestStreet: document.getElementById('guestStreet'),
         guestHouseNumber: document.getElementById('guestHouseNumber'),
         guestPostalCode: document.getElementById('guestPostalCode'),
@@ -38,6 +53,7 @@
         guestNameError: document.getElementById('guestNameError'),
         guestEmailError: document.getElementById('guestEmailError'),
         guestPhoneError: document.getElementById('guestPhoneError'),
+        guestNifNumberError: document.getElementById('guestNifNumberError'),
         guestStreetError: document.getElementById('guestStreetError'),
         guestHouseNumberError: document.getElementById('guestHouseNumberError'),
         guestPostalCodeError: document.getElementById('guestPostalCodeError'),
@@ -51,8 +67,9 @@
         summaryStay: document.getElementById('summaryStay'),
         summaryRooms: document.getElementById('summaryRooms'),
         summaryGuest: document.getElementById('summaryGuest'),
+        summaryLineItems: document.getElementById('summaryLineItems'),
         summaryStayPrice: document.getElementById('summaryStayPrice'),
-        summaryExtras: document.getElementById('summaryExtras'),
+        summaryVat: document.getElementById('summaryVat'),
         summaryTotal: document.getElementById('summaryTotal'),
         calendarPrev: document.getElementById('calendarPrev'),
         calendarNext: document.getElementById('calendarNext'),
@@ -69,10 +86,14 @@
     document.addEventListener('DOMContentLoaded', () => {
         initDatePicker();
         wireEvents();
+        restoreBookingDraft();
+        syncNifVisibility();
         void loadInitialData();
     });
 
     window.addEventListener('csl:languagechange', () => {
+        syncNifVisibility();
+        translateVisibleFieldErrors();
         updateDatePickerPresentation();
         renderAvailability();
         renderSummary();
@@ -94,6 +115,7 @@
                     state.checkout = toIsoDate(selectedDates[1]);
                     state.calendarMonth = clampCalendarMonthKey(state.checkin.slice(0, 7));
                     clearFieldError(elements.stayRangeError);
+                    saveBookingDraft();
                     void refreshAvailability();
                     void loadCalendar();
                 }
@@ -104,21 +126,39 @@
     }
 
     function wireEvents() {
-        elements.babyBed.addEventListener('change', () => {
-            state.babyBed = elements.babyBed.checked;
-            renderSummary();
-        });
-
-        elements.extraBed.addEventListener('change', () => {
-            state.extraBed = elements.extraBed.checked;
-            if (state.checkin && state.checkout) {
-                void refreshAvailability();
-            }
-            renderSummary();
+        [elements.adultCount, elements.childCount, elements.babyCount, elements.babyBed, elements.extraBed].forEach((input) => {
+            input.addEventListener('input', () => {
+                syncGuestCounts();
+                updateVisibleGuestCountErrors();
+                clearFieldError(elements.roomSelectionError);
+                saveBookingDraft();
+                void refreshQuote();
+            });
         });
 
         [elements.guestName, elements.guestCity, elements.guestPhone].forEach((input) => {
-            input.addEventListener('input', () => renderSummary());
+            input.addEventListener('input', () => {
+                renderSummary();
+                saveBookingDraft();
+            });
+        });
+
+        [
+            [elements.guestName, elements.guestNameError, getGuestNameErrorKey],
+            [elements.guestEmail, elements.guestEmailError, getGuestEmailErrorKey],
+            [elements.guestPhone, elements.guestPhoneError, getGuestPhoneErrorKey],
+            [elements.guestNifNumber, elements.guestNifNumberError, getGuestNifNumberErrorKey],
+            [elements.guestStreet, elements.guestStreetError, getGuestStreetErrorKey],
+            [elements.guestHouseNumber, elements.guestHouseNumberError, getGuestHouseNumberErrorKey],
+            [elements.guestPostalCode, elements.guestPostalCodeError, getGuestPostalCodeErrorKey],
+            [elements.guestCity, elements.guestCityError, getGuestCityErrorKey],
+            [elements.guestCountry, elements.guestCountryError, getGuestCountryErrorKey],
+            [elements.guestNote, elements.guestNoteError, getGuestNoteErrorKey]
+        ].forEach(([input, errorElement, getErrorKey]) => {
+            input.addEventListener('input', () => {
+                updateVisibleFieldError(errorElement, getErrorKey());
+                saveBookingDraft();
+            });
         });
 
         elements.bookingForm.addEventListener('submit', async (event) => {
@@ -127,22 +167,8 @@
                 return;
             }
 
-            const payload = {
-                name: elements.guestName.value.trim(),
-                email: elements.guestEmail.value.trim(),
-                phone: elements.guestPhone.value.trim(),
-                note: elements.guestNote.value.trim(),
-                street: elements.guestStreet.value.trim(),
-                houseNumber: elements.guestHouseNumber.value.trim(),
-                postalCode: elements.guestPostalCode.value.trim(),
-                city: elements.guestCity.value.trim(),
-                country: elements.guestCountry.value.trim(),
-                checkin: state.checkin,
-                checkout: state.checkout,
-                selectedRoomIds: [...state.selectedRoomIds],
-                babyBed: state.babyBed,
-                extraBed: state.extraBed
-            };
+            const payload = buildBookingPayload();
+            saveBookingDraft(payload);
 
             try {
                 setButtonLoading(true);
@@ -161,7 +187,8 @@
 
                 window.sessionStorage.setItem(`csl-hold:${data.hold.holdToken}`, JSON.stringify({
                     hold: data.hold,
-                    checkoutUrl: data.checkoutUrl || null
+                    checkoutUrl: data.checkoutUrl || null,
+                    draft: payload
                 }));
 
                 window.location.href = `/payment?hold=${encodeURIComponent(data.hold.holdToken)}`;
@@ -200,9 +227,13 @@
             }
 
             state.settings = data;
-            await loadCalendar();
-            renderAvailability();
-            renderSummary();
+            if (state.checkin && state.checkout) {
+                await Promise.all([loadCalendar(), refreshAvailability()]);
+            } else {
+                await loadCalendar();
+                renderAvailability();
+                renderSummary();
+            }
         } catch (error) {
             showStatus(elements.availabilityStatus, error.message || i18n.t('booking.errors.settings'), true);
         }
@@ -221,7 +252,7 @@
             const params = new URLSearchParams({
                 checkin: state.checkin,
                 checkout: state.checkout,
-                extraBed: String(state.extraBed)
+                extraBed: 'false'
             });
             const response = await fetch(`/api/public/availability?${params.toString()}`);
             const data = await response.json();
@@ -231,17 +262,65 @@
             }
 
             state.availability = data.rooms;
+            state.quote = null;
             const availableIds = new Set(data.rooms.filter((room) => room.isAvailable).map((room) => room.id));
             state.selectedRoomIds = new Set([...state.selectedRoomIds].filter((roomId) => availableIds.has(roomId)));
+            saveBookingDraft();
+            await refreshQuote(false);
             hideStatus(elements.availabilityStatus);
         } catch (error) {
             state.availability = [];
+            state.quote = null;
             state.selectedRoomIds.clear();
             showStatus(elements.availabilityStatus, error.message || i18n.t('booking.errors.generic'), true);
         } finally {
             state.loadingAvailability = false;
             renderAvailability();
             renderSummary();
+        }
+    }
+
+    async function refreshQuote(renderWhenDone = true) {
+        if (!state.checkin || !state.checkout || !state.selectedRoomIds.size) {
+            state.quote = null;
+            if (renderWhenDone) {
+                renderSummary();
+            }
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/public/quote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    checkin: state.checkin,
+                    checkout: state.checkout,
+                    selectedRoomIds: [...state.selectedRoomIds],
+                    adultCount: state.adultCount,
+                    childCount: state.childCount,
+                    babyCount: state.babyCount,
+                    babyBed: state.babyBed,
+                    extraBed: state.extraBed
+                })
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                state.quote = null;
+                showStatus(elements.formStatus, extractError(data, 'booking.errors.generic'), true);
+                return;
+            }
+
+            state.quote = data;
+            hideStatus(elements.formStatus);
+        } catch (error) {
+            state.quote = null;
+            showStatus(elements.formStatus, error.message || i18n.t('booking.errors.generic'), true);
+        } finally {
+            if (renderWhenDone) {
+                renderSummary();
+            }
         }
     }
 
@@ -308,11 +387,14 @@
                     <span class="room-occupancy">${i18n.t('booking.roomCapacity', { guests: room.maxGuests })}</span>
                 </span>
                 <span class="room-card-middle">
-                    <span>${i18n.t(room.isAvailable ? 'booking.roomAvailable' : 'booking.roomUnavailable')}</span>
-                    <strong>${i18n.formatCurrency(room.totalPriceCents)}</strong>
+                    <span class="room-card-status">${i18n.t(room.isAvailable ? 'booking.roomAvailable' : 'booking.roomUnavailable')}</span>
+                    <span class="room-card-price-wrap">
+                        <strong class="room-card-price">${i18n.formatCurrency(room.totalPriceCents)}</strong>
+                        <small>${i18n.t('booking.roomTotalInclVat')}</small>
+                    </span>
                 </span>
                 <span class="room-card-bottom">
-                    ${i18n.t('booking.roomNightRate', { price: i18n.formatCurrency(room.firstNightPriceCents) })}
+                    <span class="room-card-rate">${i18n.t('booking.roomNightRate', { price: i18n.formatCurrency(room.firstNightPriceCents) })}</span>
                 </span>
             `;
 
@@ -324,8 +406,9 @@
                 }
 
                 clearFieldError(elements.roomSelectionError);
+                saveBookingDraft();
                 renderAvailability();
-                renderSummary();
+                void refreshQuote();
             });
 
             elements.roomGrid.appendChild(card);
@@ -341,20 +424,89 @@
             return;
         }
 
-        const stayPrice = selectedRooms.reduce((sum, room) => sum + room.stayPriceCents, 0);
-        const extrasPrice = selectedRooms.reduce((sum, room) => sum + room.extrasPriceCents, 0);
-        const totalPrice = selectedRooms.reduce((sum, room) => sum + room.totalPriceCents, 0);
-        const nights = selectedRooms[0]?.nights || 0;
-        const guestSummary = [elements.guestName.value.trim(), elements.guestPhone.value.trim(), elements.guestCity.value.trim()].filter(Boolean).join(' · ');
+        const quote = state.quote;
+        const stayPrice = quote?.stayPriceCents ?? selectedRooms.reduce((sum, room) => sum + room.stayPriceCents, 0);
+        const extrasPrice = quote?.extrasPriceCents ?? selectedRooms.reduce((sum, room) => sum + room.extrasPriceCents, 0);
+        const vatPrice = quote?.vatPriceCents ?? selectedRooms.reduce((sum, room) => sum + room.vatPriceCents, 0);
+        const totalPrice = quote?.totalPriceCents ?? selectedRooms.reduce((sum, room) => sum + room.totalPriceCents, 0);
+        const subtotalPrice = quote?.subtotalPriceCents ?? (stayPrice + extrasPrice);
+        const nights = quote?.nights ?? selectedRooms[0]?.nights ?? 0;
+        const nightsLabel = i18n.formatUnit('night', nights);
+        const guestSummary = [
+            elements.guestName.value.trim(),
+            i18n.formatGuestCounts({ adults: state.adultCount, children: state.childCount, babies: state.babyCount }),
+            elements.guestCity.value.trim()
+        ].filter(Boolean).join(' · ');
 
         elements.summaryEmpty.classList.add('hidden');
         elements.summaryCard.classList.remove('hidden');
-        elements.summaryStay.textContent = `${formatFriendlyDate(state.checkin)} - ${formatFriendlyDate(state.checkout)} · ${i18n.t('booking.summaryNights', { nights })}`;
+        elements.summaryStay.textContent = `${formatFriendlyDate(state.checkin)} - ${formatFriendlyDate(state.checkout)} · ${nightsLabel}`;
         elements.summaryRooms.textContent = selectedRooms.map((room) => room.name).join(', ');
         elements.summaryGuest.textContent = guestSummary || '—';
-        elements.summaryStayPrice.textContent = i18n.formatCurrency(stayPrice);
-        elements.summaryExtras.textContent = i18n.formatCurrency(extrasPrice);
+        elements.summaryLineItems.innerHTML = buildSummaryLineItems(selectedRooms, nights, quote).map((item) => `
+            <div class="summary-item ${item.amountCents < 0 ? 'summary-item-negative' : ''}">
+                <span class="summary-item-copy">
+                    <span class="summary-item-title">${escapeHtml(item.label)}</span>
+                    <small class="summary-item-detail">${escapeHtml(item.detail)}</small>
+                </span>
+                <strong>${escapeHtml(i18n.formatCurrency(item.amountCents))}</strong>
+            </div>
+        `).join('');
+        elements.summaryStayPrice.textContent = i18n.formatCurrency(subtotalPrice);
+        elements.summaryVat.textContent = i18n.formatCurrency(vatPrice);
         elements.summaryTotal.textContent = i18n.formatCurrency(totalPrice);
+    }
+
+    function buildSummaryLineItems(selectedRooms, nights, quote = null) {
+        const quoteRoomLookup = new Map((quote?.roomQuotes || []).map((roomQuote) => [Number(roomQuote.roomId), roomQuote]));
+        const roomItems = [];
+        const nightsLabel = i18n.formatUnit('night', nights);
+
+        selectedRooms.forEach((room) => {
+            const roomQuote = quoteRoomLookup.get(Number(room.id));
+            const baseAmountCents = roomQuote
+                ? roomQuote.nightBreakdown.reduce((sum, night) => sum + Number(night.baseNightlyPriceCents || night.nightlyPriceCents || 0), 0)
+                : room.stayPriceCents;
+            const discountAmountCents = roomQuote
+                ? roomQuote.nightBreakdown.reduce((sum, night) => sum + Number(night.singleOccupancyDiscountCents || 0), 0)
+                : 0;
+
+            roomItems.push({
+                label: room.name,
+                detail: i18n.t('booking.summaryRateDetail', {
+                    nightsLabel,
+                    price: i18n.formatCurrency(nights ? baseAmountCents / nights : baseAmountCents)
+                }),
+                amountCents: baseAmountCents
+            });
+
+            if (discountAmountCents > 0) {
+                roomItems.push({
+                    label: i18n.t('booking.summarySingleOccupancyDiscountTitle', {
+                        room: room.name
+                    }),
+                    detail: i18n.t('booking.summaryRateDetail', {
+                        nightsLabel,
+                        price: i18n.formatCurrency(discountAmountCents / Math.max(nights, 1))
+                    }),
+                    amountCents: -discountAmountCents
+                });
+            }
+        });
+
+        const extrasPrice = quote?.extrasPriceCents ?? selectedRooms.reduce((sum, room) => sum + room.extrasPriceCents, 0);
+        if (extrasPrice > 0) {
+            roomItems.push({
+                label: i18n.t('booking.summaryExtraBedTitle'),
+                detail: i18n.t('booking.summaryRateDetail', {
+                    nightsLabel,
+                    price: i18n.formatCurrency(nights ? extrasPrice / nights : extrasPrice)
+                }),
+                amountCents: extrasPrice
+            });
+        }
+
+        return roomItems;
     }
 
     function renderCalendar() {
@@ -386,7 +538,7 @@
         state.calendar.rooms.forEach((room) => {
             const row = document.createElement('div');
             row.className = 'calendar-row';
-            const cells = room.days.map((day) => `<div class="calendar-day-cell day-${day.status}" title="${escapeHtml(room.name)} ${day.date} ${i18n.formatCurrency(day.priceCents)}"></div>`).join('');
+            const cells = room.days.map((day) => `<div class="calendar-day-cell day-${day.status}" title="${escapeHtml(room.name)} ${day.date} ${i18n.formatCurrency(day.priceInclVatCents || day.priceCents)}"></div>`).join('');
             row.innerHTML = `<div class="calendar-room-cell"><strong>${escapeHtml(room.name)}</strong><small>${i18n.t('booking.roomCapacity', { guests: room.maxGuests })}</small></div>${cells}`;
             table.appendChild(row);
         });
@@ -411,9 +563,15 @@
         hideStatus(elements.formStatus);
         clearFieldError(elements.stayRangeError);
         clearFieldError(elements.roomSelectionError);
+        clearFieldError(elements.adultCountError);
+        clearFieldError(elements.childCountError);
+        clearFieldError(elements.babyCountError);
+        clearFieldError(elements.babyBedError);
+        clearFieldError(elements.extraBedError);
         clearFieldError(elements.guestNameError);
         clearFieldError(elements.guestEmailError);
         clearFieldError(elements.guestPhoneError);
+        clearFieldError(elements.guestNifNumberError);
         clearFieldError(elements.guestStreetError);
         clearFieldError(elements.guestHouseNumberError);
         clearFieldError(elements.guestPostalCodeError);
@@ -421,70 +579,291 @@
         clearFieldError(elements.guestCountryError);
         clearFieldError(elements.guestNoteError);
 
+        syncGuestCounts();
+
+        const adultCountErrorKey = getAdultCountErrorKey();
+        if (adultCountErrorKey) {
+            showFieldError(elements.adultCountError, adultCountErrorKey);
+            valid = false;
+        }
+
+        const extraBedErrorKey = getExtraBedErrorKey();
+        if (extraBedErrorKey) {
+            showFieldError(elements.extraBedError, extraBedErrorKey);
+            valid = false;
+        }
+
+        const babyBedErrorKey = getBabyBedErrorKey();
+        if (babyBedErrorKey) {
+            showFieldError(elements.babyBedError, babyBedErrorKey);
+            valid = false;
+        }
+
+        if (state.selectedRoomIds.size) {
+            const roomCount = state.selectedRoomIds.size;
+            const payingGuests = state.adultCount + state.childCount;
+            if (state.extraBed > roomCount) {
+                showFieldError(elements.extraBedError, 'booking.validation.extraBedPerRoom');
+                valid = false;
+            }
+            if (state.babyBed > roomCount) {
+                showFieldError(elements.babyBedError, 'booking.validation.babyBedPerRoom');
+                valid = false;
+            }
+            if (payingGuests > (roomCount * 2) + state.extraBed) {
+                showFieldError(elements.roomSelectionError, 'booking.validation.occupancyRoomsRequired');
+                valid = false;
+            }
+        }
+
         if (!state.checkin || !state.checkout) {
-            showFieldError(elements.stayRangeError, i18n.t('booking.validation.stayRequired'));
+            showFieldError(elements.stayRangeError, 'booking.validation.stayRequired');
             valid = false;
         }
 
         if (!state.selectedRoomIds.size) {
-            showFieldError(elements.roomSelectionError, i18n.t('booking.validation.roomsRequired'));
+            showFieldError(elements.roomSelectionError, 'booking.validation.roomsRequired');
             valid = false;
         }
 
-        if (elements.guestName.value.trim().length < 2) {
-            showFieldError(elements.guestNameError, i18n.t('booking.validation.nameRequired'));
+        const guestNameErrorKey = getGuestNameErrorKey();
+        if (guestNameErrorKey) {
+            showFieldError(elements.guestNameError, guestNameErrorKey);
             valid = false;
         }
 
-        const email = elements.guestEmail.value.trim();
-        if (!email) {
-            showFieldError(elements.guestEmailError, i18n.t('booking.validation.emailRequired'));
-            valid = false;
-        } else if (!/^\S+@\S+\.\S+$/.test(email)) {
-            showFieldError(elements.guestEmailError, i18n.t('booking.validation.emailInvalid'));
+        const guestEmailErrorKey = getGuestEmailErrorKey();
+        if (guestEmailErrorKey) {
+            showFieldError(elements.guestEmailError, guestEmailErrorKey);
             valid = false;
         }
 
-        const phone = elements.guestPhone.value.trim();
-        if (!phone) {
-            showFieldError(elements.guestPhoneError, i18n.t('booking.validation.phoneRequired'));
-            valid = false;
-        } else if (!/^[+\d][\d\s()/-]{5,}$/.test(phone)) {
-            showFieldError(elements.guestPhoneError, i18n.t('booking.validation.phoneInvalid'));
+        const guestPhoneErrorKey = getGuestPhoneErrorKey();
+        if (guestPhoneErrorKey) {
+            showFieldError(elements.guestPhoneError, guestPhoneErrorKey);
             valid = false;
         }
 
-        if (elements.guestStreet.value.trim().length < 2) {
-            showFieldError(elements.guestStreetError, i18n.t('booking.validation.streetRequired'));
+        const guestNifNumberErrorKey = getGuestNifNumberErrorKey();
+        if (guestNifNumberErrorKey) {
+            showFieldError(elements.guestNifNumberError, guestNifNumberErrorKey);
             valid = false;
         }
 
-        if (!elements.guestHouseNumber.value.trim()) {
-            showFieldError(elements.guestHouseNumberError, i18n.t('booking.validation.houseNumberRequired'));
+        const guestStreetErrorKey = getGuestStreetErrorKey();
+        if (guestStreetErrorKey) {
+            showFieldError(elements.guestStreetError, guestStreetErrorKey);
             valid = false;
         }
 
-        if (elements.guestPostalCode.value.trim().length < 2) {
-            showFieldError(elements.guestPostalCodeError, i18n.t('booking.validation.postalCodeRequired'));
+        const guestHouseNumberErrorKey = getGuestHouseNumberErrorKey();
+        if (guestHouseNumberErrorKey) {
+            showFieldError(elements.guestHouseNumberError, guestHouseNumberErrorKey);
             valid = false;
         }
 
-        if (elements.guestCity.value.trim().length < 2) {
-            showFieldError(elements.guestCityError, i18n.t('booking.validation.cityRequired'));
+        const guestPostalCodeErrorKey = getGuestPostalCodeErrorKey();
+        if (guestPostalCodeErrorKey) {
+            showFieldError(elements.guestPostalCodeError, guestPostalCodeErrorKey);
             valid = false;
         }
 
-        if (elements.guestCountry.value.trim().length < 2) {
-            showFieldError(elements.guestCountryError, i18n.t('booking.validation.countryRequired'));
+        const guestCityErrorKey = getGuestCityErrorKey();
+        if (guestCityErrorKey) {
+            showFieldError(elements.guestCityError, guestCityErrorKey);
             valid = false;
         }
 
-        if (elements.guestNote.value.trim().length > 1000) {
-            showFieldError(elements.guestNoteError, i18n.t('booking.validation.noteLong'));
+        const guestCountryErrorKey = getGuestCountryErrorKey();
+        if (guestCountryErrorKey) {
+            showFieldError(elements.guestCountryError, guestCountryErrorKey);
+            valid = false;
+        }
+
+        const guestNoteErrorKey = getGuestNoteErrorKey();
+        if (guestNoteErrorKey) {
+            showFieldError(elements.guestNoteError, guestNoteErrorKey);
             valid = false;
         }
 
         return valid;
+    }
+
+    function getAdultCountErrorKey() {
+        return state.adultCount < 1 ? 'booking.validation.adultCountRequired' : '';
+    }
+
+    function getExtraBedErrorKey() {
+        return state.extraBed > state.childCount ? 'booking.validation.extraBedNeedsChild' : '';
+    }
+
+    function getBabyBedErrorKey() {
+        return state.babyBed > state.babyCount ? 'booking.validation.babyBedNeedsBaby' : '';
+    }
+
+    function getGuestNameErrorKey() {
+        return elements.guestName.value.trim().length < 2 ? 'booking.validation.nameRequired' : '';
+    }
+
+    function getGuestEmailErrorKey() {
+        const email = elements.guestEmail.value.trim();
+        if (!email) {
+            return 'booking.validation.emailRequired';
+        }
+        return !elements.guestEmail.checkValidity() || !/^\S+@\S+\.\S+$/.test(email) ? 'booking.validation.emailInvalid' : '';
+    }
+
+    function getGuestPhoneErrorKey() {
+        const phone = elements.guestPhone.value.trim();
+        if (!phone) {
+            return 'booking.validation.phoneRequired';
+        }
+        return /^[+\d][\d\s()/-]{5,}$/.test(phone) ? '' : 'booking.validation.phoneInvalid';
+    }
+
+    function getGuestNifNumberErrorKey() {
+        return shouldShowNifField() && elements.guestNifNumber.value.trim().length > 32 ? 'booking.validation.nifNumberLong' : '';
+    }
+
+    function getGuestStreetErrorKey() {
+        return elements.guestStreet.value.trim().length < 2 ? 'booking.validation.streetRequired' : '';
+    }
+
+    function getGuestHouseNumberErrorKey() {
+        return elements.guestHouseNumber.value.trim() ? '' : 'booking.validation.houseNumberRequired';
+    }
+
+    function getGuestPostalCodeErrorKey() {
+        return elements.guestPostalCode.value.trim().length < 2 ? 'booking.validation.postalCodeRequired' : '';
+    }
+
+    function getGuestCityErrorKey() {
+        return elements.guestCity.value.trim().length < 2 ? 'booking.validation.cityRequired' : '';
+    }
+
+    function getGuestCountryErrorKey() {
+        return elements.guestCountry.value.trim().length < 2 ? 'booking.validation.countryRequired' : '';
+    }
+
+    function getGuestNoteErrorKey() {
+        return elements.guestNote.value.trim().length > 1000 ? 'booking.validation.noteLong' : '';
+    }
+
+    function shouldShowNifField() {
+        return i18n.getLanguage() === 'pt';
+    }
+
+    function syncGuestCounts() {
+        state.adultCount = readCount(elements.adultCount, 1, 1);
+        if (elements.adultCount.value !== String(state.adultCount)) {
+            elements.adultCount.value = String(state.adultCount);
+        }
+        state.childCount = readCount(elements.childCount, 0);
+        state.babyCount = readCount(elements.babyCount, 0);
+        state.babyBed = elements.babyBed.checked ? 1 : 0;
+        state.extraBed = elements.extraBed.checked ? 1 : 0;
+    }
+
+    function buildBookingPayload() {
+        syncGuestCounts();
+        return {
+            name: elements.guestName.value.trim(),
+            email: elements.guestEmail.value.trim(),
+            phone: elements.guestPhone.value.trim(),
+            nifNumber: shouldShowNifField() ? elements.guestNifNumber.value.trim() : '',
+            note: elements.guestNote.value.trim(),
+            street: elements.guestStreet.value.trim(),
+            houseNumber: elements.guestHouseNumber.value.trim(),
+            postalCode: elements.guestPostalCode.value.trim(),
+            city: elements.guestCity.value.trim(),
+            country: elements.guestCountry.value.trim(),
+            checkin: state.checkin,
+            checkout: state.checkout,
+            selectedRoomIds: [...state.selectedRoomIds],
+            adultCount: state.adultCount,
+            childCount: state.childCount,
+            babyCount: state.babyCount,
+            babyBed: state.babyBed,
+            extraBed: state.extraBed,
+            language: i18n.getLanguage(),
+            savedAt: new Date().toISOString()
+        };
+    }
+
+    function saveBookingDraft(payload = buildBookingPayload()) {
+        try {
+            window.sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify(payload));
+        } catch {
+            // Session storage can be unavailable in private browsing modes.
+        }
+    }
+
+    function restoreBookingDraft() {
+        let draft = null;
+        try {
+            draft = JSON.parse(window.sessionStorage.getItem(BOOKING_DRAFT_KEY) || 'null');
+        } catch {
+            window.sessionStorage.removeItem(BOOKING_DRAFT_KEY);
+            return;
+        }
+
+        if (!draft || typeof draft !== 'object') {
+            return;
+        }
+
+        elements.guestName.value = draft.name || draft.guestName || '';
+        elements.guestEmail.value = draft.email || draft.guestEmail || '';
+        elements.guestPhone.value = draft.phone || draft.guestPhone || '';
+        elements.guestNifNumber.value = draft.nifNumber || '';
+        elements.guestNote.value = draft.note || '';
+        elements.guestStreet.value = draft.street || '';
+        elements.guestHouseNumber.value = draft.houseNumber || '';
+        elements.guestPostalCode.value = draft.postalCode || '';
+        elements.guestCity.value = draft.city || '';
+        elements.guestCountry.value = draft.country || '';
+        elements.adultCount.value = String(readDraftCount(draft.adultCount, 2));
+        elements.childCount.value = String(readDraftCount(draft.childCount, 0));
+        elements.babyCount.value = String(readDraftCount(draft.babyCount, 0));
+        elements.babyBed.checked = Number(draft.babyBed || 0) > 0 || draft.babyBed === true;
+        elements.extraBed.checked = Number(draft.extraBed || 0) > 0 || draft.extraBed === true;
+
+        if (isIsoDate(draft.checkin) && isIsoDate(draft.checkout)) {
+            state.checkin = draft.checkin;
+            state.checkout = draft.checkout;
+            state.calendarMonth = clampCalendarMonthKey(state.checkin.slice(0, 7));
+            datePicker?.setDate([state.checkin, state.checkout], false);
+        }
+
+        const selectedRoomIds = Array.isArray(draft.selectedRoomIds)
+            ? draft.selectedRoomIds
+            : Array.isArray(draft.selectedRooms)
+                ? draft.selectedRooms.map((room) => room.id)
+                : [];
+        state.selectedRoomIds = new Set(selectedRoomIds.filter(Boolean));
+        syncGuestCounts();
+        renderSummary();
+    }
+
+    function readDraftCount(value, fallback) {
+        const number = Number.parseInt(value, 10);
+        return Number.isFinite(number) ? Math.max(0, number) : fallback;
+    }
+
+    function isIsoDate(value) {
+        return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+    }
+
+    function readCount(input, fallback, minimum = 0) {
+        const value = Number.parseInt(input.value, 10);
+        return Number.isFinite(value) ? Math.max(minimum, value) : fallback;
+    }
+
+    function syncNifVisibility() {
+        const showNif = shouldShowNifField();
+        elements.guestNifField.classList.toggle('hidden', !showNif);
+        if (!showNif) {
+            clearFieldError(elements.guestNifNumberError);
+        }
     }
 
     function setButtonLoading(isLoading) {
@@ -504,14 +883,45 @@
         element.classList.remove('is-error');
     }
 
-    function showFieldError(element, message) {
-        element.textContent = message;
+    function showFieldError(element, translationKey) {
+        element.dataset.errorKey = translationKey;
+        element.textContent = i18n.t(translationKey);
         element.classList.remove('hidden');
+        const field = element.closest('.field');
+        field?.classList.add('is-invalid');
+        field?.querySelector('input, textarea, select')?.setAttribute('aria-invalid', 'true');
     }
 
     function clearFieldError(element) {
         element.textContent = '';
+        delete element.dataset.errorKey;
         element.classList.add('hidden');
+        const field = element.closest('.field');
+        field?.classList.remove('is-invalid');
+        field?.querySelector('input, textarea, select')?.removeAttribute('aria-invalid');
+    }
+
+    function updateVisibleFieldError(element, translationKey) {
+        if (!translationKey) {
+            clearFieldError(element);
+            return;
+        }
+
+        if (!element.classList.contains('hidden')) {
+            showFieldError(element, translationKey);
+        }
+    }
+
+    function updateVisibleGuestCountErrors() {
+        updateVisibleFieldError(elements.adultCountError, getAdultCountErrorKey());
+        updateVisibleFieldError(elements.extraBedError, getExtraBedErrorKey());
+        updateVisibleFieldError(elements.babyBedError, getBabyBedErrorKey());
+    }
+
+    function translateVisibleFieldErrors() {
+        document.querySelectorAll('.field-error:not(.hidden)[data-error-key]').forEach((element) => {
+            element.textContent = i18n.t(element.dataset.errorKey);
+        });
     }
 
     function extractError(data, fallbackKey) {

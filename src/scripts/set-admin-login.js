@@ -39,8 +39,8 @@ async function main() {
         email,
         passwordHash: hash,
         passwordSalt: salt,
-        mustChangePassword: true
+        mustChangePassword: false
     });
 
-    console.log(`Admin login ingesteld voor gebruiker ${username} (id ${userId}). Wachtwoordwissel is verplicht bij de eerste login.`);
+    console.log(`Admin login ingesteld voor gebruiker ${username} (id ${userId}).`);
 }

@@ -40,6 +40,12 @@ variable "enable_backups" {
   default     = true
 }
 
+variable "backup_retention_days" {
+  description = "How many days of local SQLite backup files to keep on the VPS."
+  type        = number
+  default     = 14
+}
+
 variable "admin_username" {
   description = "Linux admin username to create on the VPS."
   type        = string

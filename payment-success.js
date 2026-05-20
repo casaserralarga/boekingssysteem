@@ -3,8 +3,13 @@
     const sessionId = new URLSearchParams(window.location.search).get('session_id');
 
     const elements = {
+        successEyebrow: document.querySelector('[data-i18n="paymentSuccess.eyebrow"]'),
+        successText: document.querySelector('[data-i18n="paymentSuccess.text"]'),
+        successTotalLabel: document.querySelector('[data-i18n="paymentSuccess.totalLabel"]'),
         successSummary: document.getElementById('successSummary'),
         successReference: document.getElementById('successReference'),
+        successSubtotal: document.getElementById('successSubtotal'),
+        successVat: document.getElementById('successVat'),
         successTotal: document.getElementById('successTotal'),
         successRooms: document.getElementById('successRooms'),
         successStatus: document.getElementById('successStatus')
@@ -16,6 +21,16 @@
 
     async function confirmPayment() {
         if (!sessionId) {
+            const cachedBooking = window.sessionStorage.getItem('csl-confirmed-booking');
+            if (cachedBooking) {
+                elements.successEyebrow.textContent = i18n.t('paymentSuccess.reservationEyebrow');
+                elements.successText.textContent = i18n.t('paymentSuccess.reservationText');
+                elements.successTotalLabel.textContent = i18n.t('paymentSuccess.totalReservedLabel');
+                renderBooking(JSON.parse(cachedBooking));
+                showStatus(i18n.t('paymentSuccess.statusReserved'));
+                return;
+            }
+
             showStatus(i18n.t('paymentSuccess.error'), true);
             return;
         }
@@ -34,15 +49,24 @@
                 throw new Error(data.message || i18n.t('paymentSuccess.error'));
             }
 
-            const booking = data.booking;
-            elements.successSummary.classList.remove('hidden');
-            elements.successReference.textContent = booking.referenceCode;
-            elements.successTotal.textContent = i18n.formatCurrency(booking.totalPriceCents);
-            elements.successRooms.textContent = booking.selectedRooms.map((room) => room.name).join(', ');
+            window.sessionStorage.removeItem('csl-booking-draft');
+            renderBooking(data.booking);
             showStatus(i18n.t('paymentSuccess.statusPaid'));
         } catch (error) {
             showStatus(error.message || i18n.t('paymentSuccess.error'), true);
         }
+    }
+
+    function renderBooking(booking) {
+        const subtotalPriceCents = booking.subtotalPriceCents ?? (Number(booking.stayPriceCents || 0) + Number(booking.extrasPriceCents || 0));
+        const vatPriceCents = booking.vatPriceCents ?? Math.max(Number(booking.totalPriceCents || 0) - subtotalPriceCents, 0);
+
+        elements.successSummary.classList.remove('hidden');
+        elements.successReference.textContent = booking.referenceCode;
+        elements.successSubtotal.textContent = i18n.formatCurrency(subtotalPriceCents);
+        elements.successVat.textContent = i18n.formatCurrency(vatPriceCents);
+        elements.successTotal.textContent = i18n.formatCurrency(booking.totalPriceCents);
+        elements.successRooms.textContent = booking.selectedRooms.map((room) => room.name).join(', ');
     }
 
     function showStatus(message, isError = false) {

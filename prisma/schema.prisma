@@ -20,7 +20,11 @@ model Booking {
   name             String
   email            String
   phone            String        @default("")
+  nifNumber        String        @default("") @map("nif_number")
   note             String        @default("")
+  adultCount       Int           @default(2) @map("adult_count")
+  childCount       Int           @default(0) @map("child_count")
+  babyCount        Int           @default(0) @map("baby_count")
   street           String        @default("")
   houseNumber      String        @default("") @map("house_number")
   postalCode       String        @default("") @map("postal_code")
@@ -144,7 +148,11 @@ model BookingHold {
   guestName        String            @map("guest_name")
   guestEmail       String            @map("guest_email")
   guestPhone       String            @default("") @map("guest_phone")
+  nifNumber        String            @default("") @map("nif_number")
   note             String            @default("")
+  adultCount       Int               @default(2) @map("adult_count")
+  childCount       Int               @default(0) @map("child_count")
+  babyCount        Int               @default(0) @map("baby_count")
   street           String            @default("")
   houseNumber      String            @default("") @map("house_number")
   postalCode       String            @default("") @map("postal_code")

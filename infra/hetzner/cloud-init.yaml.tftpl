@@ -15,6 +15,7 @@ packages:
   - curl
   - git
   - nginx
+  - sqlite3
 
 write_files:
   - path: /usr/local/bin/bootstrap-casa-serra-larga.sh
@@ -54,6 +55,7 @@ write_files:
       PORT=${app_port}
       NODE_ENV=production
       APP_ORIGIN=${app_origin}
+      TRUST_PROXY=loopback
       SESSION_TTL_DAYS=${session_ttl_days}
       HOLD_TTL_MINUTES=${hold_ttl_minutes}
       DATABASE_URL=file:./data/reservations.sqlite
@@ -79,6 +81,30 @@ write_files:
         apt-get install -y certbot python3-certbot-nginx
         certbot --nginx --non-interactive --agree-tos --email "${letsencrypt_email}" -d "${public_hostname}" --redirect || true
       fi
+  - path: /usr/local/bin/backup-casa-serra-larga-db.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      APP_DIR="${app_directory}"
+      APP_USER="${admin_username}"
+      DB_PATH="$APP_DIR/data/reservations.sqlite"
+      BACKUP_DIR="$APP_DIR/backups"
+      TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+      TARGET="$BACKUP_DIR/reservations-$TIMESTAMP.sqlite"
+
+      if [ ! -f "$DB_PATH" ]; then
+        echo "Database not found at $DB_PATH; skipping backup."
+        exit 0
+      fi
+
+      install -d -o "$APP_USER" -g "$APP_USER" -m 0750 "$BACKUP_DIR"
+      sqlite3 "$DB_PATH" ".backup '$TARGET'"
+      chown "$APP_USER:$APP_USER" "$TARGET"
+      chmod 0640 "$TARGET"
+      find "$BACKUP_DIR" -type f -name 'reservations-*.sqlite' -mtime +${backup_retention_days} -delete
   - path: /etc/systemd/system/casa-serra-larga.service
     permissions: '0644'
     owner: root:root
@@ -99,6 +125,29 @@ write_files:
 
       [Install]
       WantedBy=multi-user.target
+  - path: /etc/systemd/system/casa-serra-larga-backup.service
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Backup Casa Serra Larga SQLite database
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/backup-casa-serra-larga-db.sh
+  - path: /etc/systemd/system/casa-serra-larga-backup.timer
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Run Casa Serra Larga database backup daily
+
+      [Timer]
+      OnCalendar=*-*-* 03:15:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
   - path: /etc/nginx/sites-available/casa-serra-larga
     permissions: '0644'
     owner: root:root
@@ -123,3 +172,5 @@ write_files:
 
 runcmd:
   - /usr/local/bin/bootstrap-casa-serra-larga.sh
+  - systemctl daemon-reload
+  - systemctl enable --now casa-serra-larga-backup.timer

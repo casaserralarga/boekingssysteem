@@ -57,6 +57,12 @@ Gebruik dit overzicht als startpunt in VS Code:
 |`test/pricing.test.js`|Tests voor prijslogica|
 |`test/security.test.js`|Tests voor securitylogica|
 
+## Productiehosting
+
+Voor goedkope productiehosting is deze app voorbereid op een kleine Hetzner Cloud VPS met Node.js, Nginx, Let's Encrypt, SQLite en dagelijkse databasebackups.
+
+Zie [docs/deploy-hetzner.md](docs/deploy-hetzner.md) voor de volledige deploystappen.
+
 ## Hoe draai je dit lokaal op je pc
 
 Dit is de snelste manier om alles lokaal te starten en te testen.

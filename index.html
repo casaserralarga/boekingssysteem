@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/flatpickr.css?v=20260418-3">
-<link rel="stylesheet" href="/styles.css?v=20260418-7">
+<link rel="stylesheet" href="/styles.css?v=20260520-11">
 </head>
 <body data-page="booking">
 <div class="site-shell site-shell-booking">
@@ -46,20 +46,41 @@
                         <p id="stayRangeError" class="field-error hidden"></p>
                     </label>
                     <div class="extras-stack">
-                        <label class="field checkbox-field">
-                            <input id="babyBed" type="checkbox">
-                            <span>
-                                <strong data-i18n="booking.babyBedLabel"></strong>
-                                <small data-i18n="booking.babyBedNote"></small>
-                            </span>
+                        <label class="field">
+                            <span data-i18n="booking.adultCountLabel"></span>
+                            <input id="adultCount" type="number" min="1" max="20" value="2" inputmode="numeric">
+                            <p id="adultCountError" class="field-error hidden"></p>
                         </label>
-                        <label class="field checkbox-field">
-                            <input id="extraBed" type="checkbox">
-                            <span>
-                                <strong data-i18n="booking.extraBedLabel"></strong>
-                                <small data-i18n="booking.extraBedNote"></small>
-                            </span>
+                        <label class="field">
+                            <span data-i18n="booking.childCountLabel"></span>
+                            <input id="childCount" type="number" min="0" max="20" value="0" inputmode="numeric">
+                            <p id="childCountError" class="field-error hidden"></p>
                         </label>
+                        <label class="field">
+                            <span data-i18n="booking.babyCountLabel"></span>
+                            <input id="babyCount" type="number" min="0" max="20" value="0" inputmode="numeric">
+                            <p id="babyCountError" class="field-error hidden"></p>
+                        </label>
+                        <div class="field">
+                            <label class="checkbox-field">
+                                <input id="babyBed" type="checkbox">
+                                <span>
+                                    <strong data-i18n="booking.babyBedLabel"></strong>
+                                    <small data-i18n="booking.babyBedNote"></small>
+                                </span>
+                            </label>
+                            <p id="babyBedError" class="field-error hidden"></p>
+                        </div>
+                        <div class="field">
+                            <label class="checkbox-field">
+                                <input id="extraBed" type="checkbox">
+                                <span>
+                                    <strong data-i18n="booking.extraBedLabel"></strong>
+                                    <small data-i18n="booking.extraBedNote"></small>
+                                </span>
+                            </label>
+                            <p id="extraBedError" class="field-error hidden"></p>
+                        </div>
                     </div>
                 </div>
 
@@ -85,7 +106,7 @@
                         </div>
                     </div>
 
-                    <div class="field-grid">
+                    <div class="field-grid field-grid-guest">
                         <label class="field">
                             <span data-i18n="booking.nameLabel"></span>
                             <input id="guestName" type="text" data-i18n-placeholder="booking.namePlaceholder" autocomplete="name">
@@ -103,6 +124,12 @@
                             <input id="guestPhone" type="tel" data-i18n-placeholder="booking.phonePlaceholder" autocomplete="tel">
                             <p id="guestPhoneError" class="field-error hidden"></p>
                         </label>
+
+                        <label id="guestNifField" class="field hidden">
+                            <span data-i18n="booking.nifNumberLabel"></span>
+                            <input id="guestNifNumber" type="text" inputmode="numeric" data-i18n-placeholder="booking.nifNumberPlaceholder" autocomplete="off">
+                            <p id="guestNifNumberError" class="field-error hidden"></p>
+                        </label>
                     </div>
 
                     <div class="section-head compact-head compact-head-subsection">
@@ -113,25 +140,25 @@
                     </div>
 
                     <div class="field-grid field-grid-address">
-                        <label class="field">
+                        <label class="field address-street-field">
                             <span data-i18n="booking.streetLabel"></span>
                             <input id="guestStreet" type="text" data-i18n-placeholder="booking.streetPlaceholder" autocomplete="address-line1">
                             <p id="guestStreetError" class="field-error hidden"></p>
                         </label>
 
-                        <label class="field">
+                        <label class="field address-house-field">
                             <span data-i18n="booking.houseNumberLabel"></span>
                             <input id="guestHouseNumber" type="text" data-i18n-placeholder="booking.houseNumberPlaceholder" autocomplete="address-line2">
                             <p id="guestHouseNumberError" class="field-error hidden"></p>
                         </label>
 
-                        <label class="field">
+                        <label class="field address-line-field">
                             <span data-i18n="booking.postalCodeLabel"></span>
                             <input id="guestPostalCode" type="text" data-i18n-placeholder="booking.postalCodePlaceholder" autocomplete="postal-code">
                             <p id="guestPostalCodeError" class="field-error hidden"></p>
                         </label>
 
-                        <label class="field">
+                        <label class="field address-line-field">
                             <span data-i18n="booking.cityLabel"></span>
                             <input id="guestCity" type="text" data-i18n-placeholder="booking.cityPlaceholder" autocomplete="address-level2">
                             <p id="guestCityError" class="field-error hidden"></p>
@@ -178,13 +205,14 @@
                     <span data-i18n="booking.summaryGuests"></span>
                     <strong id="summaryGuest"></strong>
                 </div>
-                <div class="summary-line">
-                    <span data-i18n="booking.summaryStayPrice"></span>
+                <div id="summaryLineItems" class="summary-line-items"></div>
+                <div class="summary-line summary-addend summary-addend-first">
+                    <span data-i18n="booking.summarySubtotal"></span>
                     <strong id="summaryStayPrice"></strong>
                 </div>
-                <div class="summary-line">
-                    <span data-i18n="booking.summaryExtras"></span>
-                    <strong id="summaryExtras"></strong>
+                <div class="summary-line summary-addend">
+                    <span data-i18n="booking.summaryVat"></span>
+                    <strong id="summaryVat"></strong>
                 </div>
                 <div class="summary-total">
                     <span data-i18n="booking.summaryTotal"></span>
@@ -231,8 +259,8 @@
     </section>
 </div>
 
-<script src="/site.js?v=20260418-6"></script>
+<script src="/site.js?v=20260520-12"></script>
 <script src="/flatpickr.js?v=20260418-3"></script>
-<script src="/script.js?v=20260418-7"></script>
+<script src="/script.js?v=20260520-14"></script>
 </body>
 </html>

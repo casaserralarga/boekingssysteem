@@ -452,9 +452,86 @@ img {
 
 .payment-layout {
     display: grid;
-    grid-template-columns: minmax(0, 820px);
+    grid-template-columns: minmax(0, 1fr);
     justify-content: center;
     margin-bottom: 24px;
+}
+
+.site-shell-payment {
+    width: min(1040px, calc(100% - 40px));
+}
+
+.site-shell-payment .compact-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 18px 22px;
+    padding: 24px 28px;
+    border-radius: 24px;
+    margin-bottom: 20px;
+}
+
+.site-shell-payment .brand-logo {
+    width: 58px;
+    height: 58px;
+}
+
+.site-shell-payment .hero-copy {
+    grid-column: 1 / -1;
+    gap: 8px;
+    max-width: none;
+    padding-top: 18px;
+    border-top: 1px solid rgba(90, 65, 43, 0.12);
+}
+
+.site-shell-payment .hero-copy h1 {
+    max-width: none;
+    font-size: clamp(2.35rem, 4vw, 3.6rem);
+}
+
+.site-shell-payment .hero-text {
+    max-width: 70ch;
+}
+
+.site-shell-payment .booking-panel-main {
+    padding: 28px;
+    border-radius: 24px;
+}
+
+.button-row-inline.payment-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    justify-content: stretch;
+    padding-top: 18px;
+}
+
+.payment-actions .link-button {
+    justify-self: start;
+}
+
+.payment-actions .primary-button {
+    min-width: 210px;
+}
+
+.payment-actions a,
+.payment-actions button {
+    white-space: nowrap;
+}
+
+.payment-actions .secondary-button:not(.link-button) {
+    background: rgba(255, 255, 255, 0.78);
+    border-color: rgba(95, 109, 68, 0.18);
+    color: var(--olive);
+}
+
+.payment-expired-actions {
+    display: flex;
+    justify-content: flex-start;
+    padding-top: 4px;
+}
+
+.payment-expired-actions .primary-button {
+    min-width: 260px;
 }
 
 .home-layout {
@@ -556,6 +633,10 @@ img {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.field-grid.field-grid-guest {
+    grid-template-columns: 1fr;
+}
+
 .field-group {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -566,7 +647,19 @@ img {
 }
 
 .field-grid-address {
-    grid-template-columns: minmax(0, 1.45fr) minmax(110px, 0.65fr) repeat(3, minmax(140px, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
+}
+
+.address-street-field {
+    grid-column: 1 / 2;
+}
+
+.address-house-field {
+    grid-column: 2 / 3;
+}
+
+.address-line-field {
+    grid-column: 1 / -1;
 }
 
 .button-row-inline {
@@ -675,9 +768,27 @@ img {
 }
 
 .field-error {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
     margin: 0;
+    padding: 8px 12px;
+    border: 1px solid rgba(180, 67, 56, 0.16);
+    border-radius: 12px;
+    background: rgba(180, 67, 56, 0.08);
     color: var(--danger);
-    font-size: 0.9rem;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.field.is-invalid input,
+.field.is-invalid textarea,
+.field.is-invalid select {
+    border-color: rgba(180, 67, 56, 0.62) !important;
+    background: rgba(255, 248, 247, 0.96) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), 0 0 0 4px rgba(180, 67, 56, 0.1) !important;
 }
 
 .meta-chip,
@@ -703,34 +814,52 @@ img {
 
 .room-grid {
     display: grid;
-    gap: 14px;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 .room-card,
 .empty-card {
+    position: relative;
+    overflow: hidden;
     display: grid;
-    gap: 12px;
+    gap: 14px;
     align-content: start;
-    padding: 18px;
-    border-radius: 20px;
-    border: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.78);
+    min-height: 168px;
+    padding: 20px;
+    border-radius: 18px;
+    border: 1px solid rgba(90, 65, 43, 0.14);
+    background:
+        linear-gradient(180deg, rgba(255, 252, 247, 0.98), rgba(249, 240, 229, 0.92)),
+        rgba(255, 255, 255, 0.78);
     text-align: left;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 14px 34px rgba(63, 42, 26, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.72);
     transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
+.room-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 4px;
+    background: linear-gradient(90deg, var(--olive), var(--accent));
+    opacity: 0.42;
+}
+
 .room-card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(154, 79, 50, 0.24);
-    box-shadow: 0 18px 26px rgba(63, 42, 26, 0.1);
+    transform: translateY(-3px);
+    border-color: rgba(154, 79, 50, 0.34);
+    box-shadow: 0 22px 40px rgba(63, 42, 26, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.74);
 }
 
 .room-card.is-selected {
-    border-color: rgba(154, 79, 50, 0.54);
-    box-shadow: 0 16px 28px rgba(114, 53, 33, 0.12), inset 0 0 0 2px rgba(154, 79, 50, 0.14);
-    background: linear-gradient(180deg, rgba(255, 250, 244, 0.98), rgba(252, 241, 233, 0.94));
+    border-color: rgba(95, 109, 68, 0.5);
+    box-shadow: 0 20px 36px rgba(63, 42, 26, 0.14), inset 0 0 0 2px rgba(95, 109, 68, 0.16);
+    background: linear-gradient(180deg, rgba(252, 253, 247, 0.98), rgba(242, 235, 221, 0.94));
+}
+
+.room-card.is-selected::before {
+    opacity: 0.82;
 }
 
 .room-card.is-unavailable {
@@ -749,6 +878,60 @@ img {
     align-items: flex-start;
     justify-content: space-between;
     gap: 14px;
+}
+
+.room-card-top,
+.room-card-middle,
+.room-card-bottom {
+    position: relative;
+    z-index: 1;
+}
+
+.room-card-top strong {
+    font-size: 1.08rem;
+    line-height: 1.2;
+}
+
+.room-card-middle {
+    align-items: flex-end;
+    padding-top: 8px;
+    border-top: 1px solid rgba(90, 65, 43, 0.1);
+}
+
+.room-card-status {
+    align-self: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(95, 109, 68, 0.1);
+    color: var(--olive);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.room-card-price-wrap {
+    display: grid;
+    justify-items: end;
+    gap: 2px;
+    text-align: right;
+}
+
+.room-card-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.72rem;
+    line-height: 1;
+    color: var(--accent-dark);
+}
+
+.room-card-price-wrap small,
+.room-card-rate {
+    color: var(--muted);
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.room-card-rate {
+    display: inline-flex;
+    padding-top: 2px;
 }
 
 .summary-card,
@@ -771,10 +954,72 @@ img {
     border-bottom: 1px solid var(--line);
 }
 
+.summary-line-items {
+    display: grid;
+    gap: 10px;
+    padding: 2px 0 4px;
+}
+
+.summary-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px dashed rgba(90, 65, 43, 0.14);
+}
+
+.summary-item-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.summary-item-title {
+    color: var(--ink);
+    font-size: 0.94rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.summary-item-detail {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 650;
+    line-height: 1.25;
+}
+
+.summary-item strong {
+    white-space: nowrap;
+}
+
+.summary-item-negative span,
+.summary-item-negative strong {
+    color: var(--success);
+}
+
 .summary-total {
-    padding-top: 10px;
+    position: relative;
+    margin-top: 4px;
+    padding-top: 16px;
     font-size: 1.14rem;
     align-items: center;
+}
+
+.summary-total::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(90, 65, 43, 0.2);
+}
+
+.summary-total strong {
+    font-size: 1.2rem;
+    color: var(--accent-dark);
 }
 
 .calendar-panel {
@@ -1075,7 +1320,7 @@ img {
     }
 
     .field-grid-address {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
     }
 }
 
@@ -1101,6 +1346,12 @@ img {
     .button-row-inline,
     .payment-layout {
         grid-template-columns: 1fr;
+    }
+
+    .address-street-field,
+    .address-house-field,
+    .address-line-field {
+        grid-column: 1;
     }
 
     .calendar-row {
@@ -1185,6 +1436,20 @@ img {
     #savePriceBtn,
     #closePriceBtn,
     #logoutBtn {
+        width: 100%;
+    }
+
+    .button-row-inline.payment-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .payment-actions .link-button {
+        justify-self: stretch;
+    }
+
+    .payment-expired-actions .primary-button {
         width: 100%;
     }
 

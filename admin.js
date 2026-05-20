@@ -87,6 +87,7 @@
         bookingMetaSummary: document.getElementById('bookingMetaSummary'),
         editName: document.getElementById('editName'),
         editEmail: document.getElementById('editEmail'),
+        editNifNumber: document.getElementById('editNifNumber'),
         editStreet: document.getElementById('editStreet'),
         editHouseNumber: document.getElementById('editHouseNumber'),
         editPostalCode: document.getElementById('editPostalCode'),
@@ -96,6 +97,9 @@
         editCheckin: document.getElementById('editCheckin'),
         editCheckout: document.getElementById('editCheckout'),
         editRoomSelector: document.getElementById('editRoomSelector'),
+        editAdultCount: document.getElementById('editAdultCount'),
+        editChildCount: document.getElementById('editChildCount'),
+        editBabyCount: document.getElementById('editBabyCount'),
         editBabyBed: document.getElementById('editBabyBed'),
         editExtraBed: document.getElementById('editExtraBed'),
         editStatus: document.getElementById('editStatus'),
@@ -413,9 +417,7 @@
         try {
             showAdmin();
             renderAll();
-            if (!state.user.mustChangePassword) {
-                await loadPlanner();
-            }
+            await loadPlanner();
         } catch (error) {
             reportFatalError(error);
             throw error;
@@ -433,7 +435,6 @@
         renderBlockRoomSelector();
         renderBlocks();
         renderPaymentSettings();
-        applyPasswordChangeRestriction();
         setActiveView(state.activeView);
     }
 
@@ -443,9 +444,9 @@
             <div class="booking-actions">
                 <div>
                     <h3>Stripe status</h3>
-                    <p>${state.user?.mustChangePassword ? 'Beschikbaar nadat het tijdelijke adminwachtwoord is gewijzigd.' : stripeConfigured ? 'Stripe is geconfigureerd voor checkout.' : 'Stripe is nog niet ingesteld.'}</p>
+                    <p>${stripeConfigured ? 'Stripe is geconfigureerd voor checkout.' : 'Stripe is nog niet ingesteld.'}</p>
                 </div>
-                <span class="admin-badge ${state.user?.mustChangePassword ? 'badge-warning' : stripeConfigured ? 'badge-success' : 'badge-warning'}">${state.user?.mustChangePassword ? 'Vergrendeld' : stripeConfigured ? 'Actief' : 'Ontbreekt'}</span>
+                <span class="admin-badge ${stripeConfigured ? 'badge-success' : 'badge-warning'}">${stripeConfigured ? 'Actief' : 'Ontbreekt'}</span>
             </div>
             <div class="booking-meta">
                 <div><strong>Opgeslagen sleutel</strong><br>${escapeHtml(stripeSecretKeyMasked || 'Nog geen sleutel opgeslagen')}</div>
@@ -454,25 +455,6 @@
         `;
 
         elements.stripeSecretKey.value = '';
-        elements.paymentSettingsForm.querySelectorAll('input, button').forEach((element) => {
-            element.disabled = Boolean(state.user?.mustChangePassword);
-        });
-    }
-
-    function applyPasswordChangeRestriction() {
-        const restricted = Boolean(state.user?.mustChangePassword);
-        elements.dashboardBookingsBtn.disabled = restricted;
-        elements.dashboardBookingsBtn.hidden = restricted;
-
-        elements.adminNav.querySelectorAll('[data-view]').forEach((button) => {
-            const allowed = button.dataset.view === 'security';
-            button.disabled = restricted && !allowed;
-        });
-
-        if (restricted) {
-            showAdminStatus('Dit is een tijdelijke adminlogin. Stel eerst een eigen wachtwoord in voordat je verdergaat.');
-            state.activeView = 'security';
-        }
     }
 
     function renderDashboard() {
@@ -490,7 +472,7 @@
             { label: 'Komende check-ins', value: String(upcoming.length), note: 'Vanaf vandaag', action: 'show-upcoming' },
             { label: 'Open betalingen', value: String(unpaid.length), note: 'Nog niet volledig betaald', action: 'show-unpaid' },
             { label: 'Actieve holds', value: String(state.activeHolds.length), note: 'Tijdelijk vastgelegd', action: 'show-planning' },
-            { label: 'Omzet', value: formatMoney(revenueCents), note: 'Totaal geboekt bedrag', action: 'show-all-bookings' }
+            { label: 'Omzet', value: formatMoney(revenueCents), note: 'Totaal geboekt bedrag incl. btw', action: 'show-all-bookings' }
         ];
 
         elements.dashboardStats.innerHTML = statCards.map((card) => `
@@ -501,15 +483,15 @@
             </button>
         `).join('');
 
-        renderCompactBookingList(elements.dashboardPending, pending.slice(0, 5), 'Geen nieuwe aanvragen.');
+        renderCompactBookingList(elements.dashboardPending, pending.slice(0, 8), 'Geen nieuwe aanvragen.');
         renderCompactBookingList(
             elements.dashboardUpcoming,
-            upcoming.slice().sort((left, right) => left.checkin.localeCompare(right.checkin)).slice(0, 5),
+            upcoming.slice().sort((left, right) => left.checkin.localeCompare(right.checkin)).slice(0, 8),
             'Geen komende check-ins.'
         );
 
         if (!state.activeHolds.length) {
-            elements.dashboardHolds.innerHTML = '<div class="dashboard-card">Geen actieve holds.</div>';
+            elements.dashboardHolds.innerHTML = '<div class="dashboard-empty">Geen actieve holds.</div>';
             return;
         }
 
@@ -517,41 +499,49 @@
             .slice()
             .sort((left, right) => left.expiresAt.localeCompare(right.expiresAt))
             .map((hold) => `
-                <article class="hold-card">
-                    <div class="booking-actions">
-                        <div>
+                <article class="dashboard-hold-card">
+                    <div class="dashboard-hold-head">
+                        <div class="dashboard-hold-main">
                             <h3>${escapeHtml(hold.guestName)}</h3>
                             <p>${escapeHtml(hold.guestEmail)}</p>
                         </div>
-                        <button type="button" class="secondary-button" data-view-jump="planning">Planning</button>
+                        <span class="admin-badge badge-warning hold-time-pill">${escapeHtml(formatTimeUntil(hold.expiresAt))}</span>
                     </div>
-                    <div class="hold-meta">
-                        <div><strong>Kamers</strong><br>${escapeHtml(joinRoomNames(hold.selectedRooms))}</div>
-                        <div><strong>Periode</strong><br>${escapeHtml(formatDateRange(hold.checkin, hold.checkout))}</div>
-                        <div><strong>Verloopt</strong><br>${escapeHtml(formatDateTime(hold.expiresAt))}</div>
-                        <div><strong>Totaal</strong><br>${escapeHtml(formatMoney(hold.totalPriceCents))}</div>
+                    <div class="dashboard-hold-meta-grid">
+                        <div><strong>Kamers</strong>${escapeHtml(joinRoomNames(hold.selectedRooms))}</div>
+                        <div><strong>Gasten</strong>${escapeHtml(guestCountLabel(hold))}</div>
+                        <div><strong>Periode</strong>${escapeHtml(formatDateRange(hold.checkin, hold.checkout))}</div>
+                        <div><strong>Verloopt</strong>${escapeHtml(formatDateTime(hold.expiresAt))}</div>
+                        ${hold.nifNumber ? `<div><strong>NIF</strong>${escapeHtml(hold.nifNumber)}</div>` : ''}
+                        <div><strong>Totaal</strong>${escapeHtml(formatMoney(hold.totalPriceCents))}</div>
                     </div>
+                    <button type="button" class="secondary-button" data-view-jump="planning">Open planning</button>
                 </article>
             `).join('');
     }
 
     function renderCompactBookingList(container, bookings, emptyText) {
         if (!bookings.length) {
-            container.innerHTML = `<div class="dashboard-card">${escapeHtml(emptyText)}</div>`;
+            container.innerHTML = `<div class="dashboard-empty">${escapeHtml(emptyText)}</div>`;
             return;
         }
 
         container.innerHTML = bookings.map((booking) => `
-            <article class="booking-compact-card">
-                <div>
-                    <h3>${escapeHtml(booking.name)}</h3>
-                    <p>${escapeHtml(joinRoomNames(booking.selectedRooms))}</p>
+            <article class="dashboard-list-item">
+                <div class="dashboard-list-main">
+                    <div class="dashboard-list-title-row">
+                        <h3>${escapeHtml(booking.name)}</h3>
+                        <span class="admin-badge ${statusBadgeClass(booking.status)}">${escapeHtml(statusLabel(booking.status))}</span>
+                    </div>
+                    <p class="dashboard-list-subline">${escapeHtml(joinRoomNames(booking.selectedRooms))}</p>
+                    <div class="dashboard-list-meta">
+                        <span>${escapeHtml(formatDateRange(booking.checkin, booking.checkout))}</span>
+                        <span class="admin-badge ${paymentBadgeClass(booking)}">${escapeHtml(paymentLabel(booking))}</span>
+                        <span>${escapeHtml(guestCountLabel(booking))}</span>
+                        <span>${escapeHtml(formatMoney(booking.totalPriceCents))}</span>
+                    </div>
                 </div>
-                <div class="booking-compact-meta">
-                    <span>${escapeHtml(formatDateRange(booking.checkin, booking.checkout))}</span>
-                    <span>${escapeHtml(paymentLabel(booking))}</span>
-                </div>
-                <button type="button" data-booking-id="${booking.id}">Open details</button>
+                <button type="button" class="dashboard-list-action" data-booking-id="${booking.id}">Open</button>
             </article>
         `).join('');
     }
@@ -614,11 +604,14 @@
                 </div>
                 <div class="booking-meta booking-meta-wide">
                     <div><strong>Referentie</strong><br>${escapeHtml(booking.referenceCode)}</div>
+                    ${booking.nifNumber ? `<div><strong>NIF</strong><br>${escapeHtml(booking.nifNumber)}</div>` : ''}
+                    <div><strong>Gasten</strong><br>${escapeHtml(guestCountLabel(booking))}</div>
                     <div><strong>Periode</strong><br>${escapeHtml(formatDateRange(booking.checkin, booking.checkout))}</div>
                     <div><strong>Kamers</strong><br>${escapeHtml(joinRoomNames(booking.selectedRooms))}</div>
                     <div><strong>Status</strong><br><span class="admin-badge ${statusBadgeClass(booking.status)}">${escapeHtml(statusLabel(booking.status))}</span></div>
                     <div><strong>Betaling</strong><br><span class="admin-badge ${paymentBadgeClass(booking)}">${escapeHtml(paymentLabel(booking))}</span></div>
-                    <div><strong>Totaal</strong><br>${escapeHtml(formatMoney(booking.totalPriceCents))}</div>
+                    <div><strong>Btw 6%</strong><br>${escapeHtml(formatMoney(booking.vatPriceCents))}</div>
+                    <div><strong>Totaal incl. btw</strong><br>${escapeHtml(formatMoney(booking.totalPriceCents))}</div>
                     <div><strong>Aangemaakt</strong><br>${escapeHtml(formatDateTime(booking.createdAt))}</div>
                 </div>
             </article>
@@ -649,7 +642,7 @@
                             <input name="name" type="text" value="${escapeHtml(room.name)}" required>
                         </label>
                         <label class="field">
-                            <span>Vaste prijs per nacht (€)</span>
+                            <span>Vaste prijs per nacht excl. btw (€)</span>
                             <input name="basePrice" type="number" min="0" step="0.01" value="${room.basePriceCents == null ? '' : escapeHtml(String(room.basePriceCents / 100))}" required>
                         </label>
                         <label class="checkbox-field room-active-toggle">
@@ -684,7 +677,7 @@
                         <span class="admin-badge ${room.basePriceCents == null ? 'badge-warning' : 'badge-success'}">${room.basePriceCents == null ? 'Controle nodig' : 'Vaste prijs ingesteld'}</span>
                     </div>
                     <div class="booking-meta">
-                        <div><strong>Vaste prijs</strong><br>${room.basePriceCents == null ? 'Niet ingevuld' : escapeHtml(formatMoney(room.basePriceCents))} per nacht</div>
+                        <div><strong>Vaste prijs excl. btw</strong><br>${room.basePriceCents == null ? 'Niet ingevuld' : escapeHtml(formatMoney(room.basePriceCents))} per nacht</div>
                         <div><strong>Uitzonderingen</strong><br>${exceptionCount}</div>
                     </div>
                 </article>
@@ -718,7 +711,7 @@
                         </div>
                         <div class="booking-meta">
                             <div><strong>Periode</strong><br>${escapeHtml(`${rule.start} t/m ${rule.end}`)}</div>
-                            <div><strong>Prijs</strong><br>${escapeHtml(formatMoney(rule.nightlyPriceCents))} per nacht</div>
+                            <div><strong>Prijs excl. btw</strong><br>${escapeHtml(formatMoney(rule.nightlyPriceCents))} per nacht</div>
                         </div>
                     </article>
                 `;
@@ -805,7 +798,7 @@
         data.rooms.forEach((room) => {
             const row = document.createElement('div');
             row.className = 'planner-row';
-            row.innerHTML = `<div class="planner-room">${escapeHtml(room.name)}</div>${room.days.map((day) => `<div class="planner-cell ${day.status === 'available' ? 'free' : day.status}" title="${escapeHtml(`${room.name} ${day.date} · ${day.detail || 'Vrij'} · ${formatMoney(day.priceCents)}`)}"></div>`).join('')}`;
+            row.innerHTML = `<div class="planner-room">${escapeHtml(room.name)}</div>${room.days.map((day) => `<div class="planner-cell ${day.status === 'available' ? 'free' : day.status}" title="${escapeHtml(`${room.name} ${day.date} · ${day.detail || 'Vrij'} · ${formatMoney(day.priceInclVatCents || day.priceCents)} incl. btw`)}"></div>`).join('')}`;
             grid.appendChild(row);
         });
 
@@ -1123,9 +1116,10 @@
 
         state.editingBookingId = bookingId;
         elements.bookingModalTitle.textContent = booking.referenceCode;
-        elements.bookingMetaSummary.textContent = `${booking.name} · ${booking.email}`;
+        elements.bookingMetaSummary.textContent = [booking.name, booking.email, booking.nifNumber ? `NIF ${booking.nifNumber}` : ''].filter(Boolean).join(' · ');
         elements.editName.value = booking.name;
         elements.editEmail.value = booking.email;
+        elements.editNifNumber.value = booking.nifNumber || '';
         elements.editStreet.value = booking.street || '';
         elements.editHouseNumber.value = booking.houseNumber || '';
         elements.editPostalCode.value = booking.postalCode || '';
@@ -1134,6 +1128,9 @@
         elements.editNote.value = booking.note || '';
         elements.editCheckin.value = booking.checkin;
         elements.editCheckout.value = booking.checkout;
+        elements.editAdultCount.value = String(booking.adultCount || 2);
+        elements.editChildCount.value = String(booking.childCount || 0);
+        elements.editBabyCount.value = String(booking.babyCount || 0);
         elements.editBabyBed.checked = Boolean(booking.babyBed);
         elements.editExtraBed.checked = Boolean(booking.extraBed);
         elements.editStatus.value = booking.status;
@@ -1176,11 +1173,15 @@
         const booking = state.bookings.find((item) => item.id === state.editingBookingId);
         const stayPriceCents = eurosToCents(elements.editStayPrice.value);
         const extrasPriceCents = eurosToCents(elements.editExtras.value);
-        const totalPriceCents = stayPriceCents + extrasPriceCents;
+        const subtotalPriceCents = stayPriceCents + extrasPriceCents;
+        const vatPriceCents = calculateVatCents(subtotalPriceCents);
+        const totalPriceCents = subtotalPriceCents + vatPriceCents;
 
         elements.priceSummary.innerHTML = `
             <div class="admin-callout-grid">
-                <div><strong>Totaal</strong><br>${escapeHtml(formatMoney(totalPriceCents))}</div>
+                <div><strong>Subtotaal excl. btw</strong><br>${escapeHtml(formatMoney(subtotalPriceCents))}</div>
+                <div><strong>Btw 6%</strong><br>${escapeHtml(formatMoney(vatPriceCents))}</div>
+                <div><strong>Totaal incl. btw</strong><br>${escapeHtml(formatMoney(totalPriceCents))}</div>
                 <div><strong>Aangemaakt</strong><br>${escapeHtml(booking ? formatDateTime(booking.createdAt) : '-')}</div>
                 <div><strong>Laatst gewijzigd</strong><br>${escapeHtml(booking ? formatDateTime(booking.updatedAt) : '-')}</div>
             </div>
@@ -1208,9 +1209,21 @@
 
         const stayPriceCents = eurosToCents(elements.editStayPrice.value);
         const extrasPriceCents = eurosToCents(elements.editExtras.value);
+        const subtotalPriceCents = stayPriceCents + extrasPriceCents;
+        const totalPriceCents = subtotalPriceCents + calculateVatCents(subtotalPriceCents);
+        const rawAdultCount = Number.parseInt(elements.editAdultCount.value, 10);
+        const adultCount = readAdminCount(elements.editAdultCount, 2, 1);
+
+        if (!Number.isFinite(rawAdultCount) || rawAdultCount < 1) {
+            elements.editAdultCount.value = '1';
+            showAdminStatus('Een boeking moet minimaal 1 volwassene hebben.', true);
+            return;
+        }
+
         const payload = {
             name: elements.editName.value.trim(),
             email: elements.editEmail.value.trim(),
+            nifNumber: elements.editNifNumber.value.trim(),
             note: elements.editNote.value.trim(),
             street: elements.editStreet.value.trim(),
             houseNumber: elements.editHouseNumber.value.trim(),
@@ -1220,11 +1233,14 @@
             checkin: elements.editCheckin.value,
             checkout: elements.editCheckout.value,
             selectedRoomIds,
-            babyBed: elements.editBabyBed.checked,
-            extraBed: elements.editExtraBed.checked,
+            adultCount,
+            childCount: readAdminCount(elements.editChildCount, 0),
+            babyCount: readAdminCount(elements.editBabyCount, 0),
+            babyBed: elements.editBabyBed.checked ? 1 : 0,
+            extraBed: elements.editExtraBed.checked ? 1 : 0,
             stayPriceCents,
             extrasPriceCents,
-            totalPriceCents: stayPriceCents + extrasPriceCents,
+            totalPriceCents,
             status: elements.editStatus.value,
             mailSent: elements.editMail.checked,
             depositPaid: elements.editDeposit.checked,
@@ -1310,6 +1326,8 @@
         const searchable = normalizeText([
             booking.name,
             booking.email,
+            booking.nifNumber,
+            guestCountLabel(booking),
             booking.referenceCode,
             joinRoomNames(booking.selectedRooms)
         ].join(' '));
@@ -1386,10 +1404,6 @@
     }
 
     function setActiveView(view) {
-        if (state.user?.mustChangePassword && view !== 'security') {
-            view = 'security';
-        }
-
         state.activeView = view;
         document.querySelectorAll('.admin-view').forEach((section) => {
             section.classList.toggle('hidden', section.id !== `view-${view}`);
@@ -1398,7 +1412,7 @@
             button.classList.toggle('is-active', button.dataset.view === view);
         });
 
-        if (view === 'planning' && !state.user?.mustChangePassword) {
+        if (view === 'planning') {
             void loadPlanner();
         }
     }
@@ -1557,6 +1571,19 @@
         return Math.round(Number(value || 0) * 100);
     }
 
+    function calculateVatCents(subtotalPriceCents) {
+        return Math.round((Number(subtotalPriceCents || 0) * 6) / 100);
+    }
+
+    function readAdminCount(input, fallback, minimum = 0) {
+        const value = Number.parseInt(input.value, 10);
+        return Number.isFinite(value) ? Math.max(minimum, value) : fallback;
+    }
+
+    function guestCountLabel(booking) {
+        return `${Number(booking.adultCount || 0)} volw. · ${Number(booking.childCount || 0)} kind. · ${Number(booking.babyCount || 0)} baby`;
+    }
+
     function formatMoney(cents) {
         return new Intl.NumberFormat('nl-NL', {
             style: 'currency',
@@ -1592,6 +1619,22 @@
             hour: '2-digit',
             minute: '2-digit'
         });
+    }
+
+    function formatTimeUntil(value) {
+        const remainingMs = new Date(value).getTime() - Date.now();
+        if (!Number.isFinite(remainingMs) || remainingMs <= 0) {
+            return 'Verlopen';
+        }
+
+        const minutes = Math.ceil(remainingMs / 60000);
+        if (minutes < 60) {
+            return `${minutes} min`;
+        }
+
+        const hours = Math.floor(minutes / 60);
+        const restMinutes = minutes % 60;
+        return restMinutes ? `${hours}u ${restMinutes}m` : `${hours}u`;
     }
 
     function todayIso() {

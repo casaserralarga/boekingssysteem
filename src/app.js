@@ -13,6 +13,7 @@ const {
     calculateQuote,
     calculateMultiRoomQuote,
     getNightlyPriceCents,
+    addVatToPriceCents,
     parseIsoDate,
     addUtcDays,
     formatIsoDate
@@ -40,6 +41,26 @@ const emailSchema = z.string().trim().toLowerCase().email().max(320);
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const roomIdsSchema = z.array(z.coerce.number().int().positive()).min(1).max(20);
+const countSchema = z.coerce.number().int().min(0).max(20).default(0);
+const adultCountSchema = z.coerce.number().int().min(1).max(20).default(2);
+const bedCountSchema = z.preprocess((value) => {
+    if (typeof value === 'boolean') {
+        return value ? 1 : 0;
+    }
+
+    if (typeof value === 'string' && ['true', 'yes', 'on'].includes(value.toLowerCase())) {
+        return 1;
+    }
+
+    return value;
+}, countSchema);
+const occupancySchema = {
+    adultCount: adultCountSchema,
+    childCount: countSchema,
+    babyCount: countSchema,
+    babyBed: bedCountSchema,
+    extraBed: bedCountSchema
+};
 const addressSchema = {
     street: z.string().trim().min(2).max(120),
     houseNumber: z.string().trim().min(1).max(24),
@@ -52,20 +73,20 @@ const quoteRequestSchema = z.object({
     checkin: isoDateSchema,
     checkout: isoDateSchema,
     selectedRoomIds: roomIdsSchema,
-    extraBed: booleanishSchema.default(false)
+    ...occupancySchema
 });
 
 const holdRequestSchema = z.object({
     name: z.string().trim().min(2).max(120),
     email: emailSchema,
     phone: z.string().trim().min(6).max(40),
+    nifNumber: z.string().trim().max(32).optional().default(''),
     note: z.string().trim().max(1000).optional().default(''),
     ...addressSchema,
     checkin: isoDateSchema,
     checkout: isoDateSchema,
     selectedRoomIds: roomIdsSchema,
-    babyBed: booleanishSchema.default(false),
-    extraBed: booleanishSchema.default(false)
+    ...occupancySchema
 });
 
 const directBookingRequestSchema = holdRequestSchema;
@@ -114,6 +135,7 @@ const bookingUpdateSchema = z.object({
     name: z.string().trim().min(2).max(120),
     email: emailSchema,
     phone: z.string().trim().max(40).optional(),
+    nifNumber: z.string().trim().max(32).optional().default(''),
     note: z.string().trim().max(1000).optional().default(''),
     street: z.string().trim().max(120).optional(),
     houseNumber: z.string().trim().max(24).optional(),
@@ -124,8 +146,7 @@ const bookingUpdateSchema = z.object({
     checkout: isoDateSchema,
     selectedRoomIds: roomIdsSchema.optional(),
     assignedRoom: z.union([z.coerce.number().int().min(1).max(20), z.null()]).optional(),
-    babyBed: booleanishSchema.optional(),
-    extraBed: booleanishSchema,
+    ...occupancySchema,
     stayPriceCents: z.coerce.number().int().min(0).max(100000000),
     extrasPriceCents: z.coerce.number().int().min(0).max(100000000),
     totalPriceCents: z.coerce.number().int().min(0).max(100000000),
@@ -152,6 +173,10 @@ const paymentSettingsSchema = z.object({
 
 function createApp() {
     const app = express();
+
+    if (config.trustProxy) {
+        app.set('trust proxy', config.trustProxy);
+    }
 
     void db.deleteExpiredSessions();
     void db.deleteExpiredBookingHolds();
@@ -302,7 +327,14 @@ function createApp() {
                                 pricingRules,
                                 roomBasePriceCents: room.basePriceCents,
                                 seasonPricing: pricing
-                            })
+                            }),
+                            priceInclVatCents: addVatToPriceCents(getNightlyPriceCents({
+                                roomId: room.id,
+                                date,
+                                pricingRules,
+                                roomBasePriceCents: room.basePriceCents,
+                                seasonPricing: pricing
+                            }))
                         };
                     })
                 }))
@@ -333,6 +365,7 @@ function createApp() {
         try {
             const data = quoteRequestSchema.parse(req.body);
             validateDateRange(data.checkin, data.checkout);
+            validateOccupancyForRooms(data, data.selectedRoomIds);
 
             const pricing = await db.getPricingSettings();
             const pricingRules = await db.listPricingRules();
@@ -343,7 +376,10 @@ function createApp() {
                 selectedRoomIds: data.selectedRoomIds,
                 checkin: data.checkin,
                 checkout: data.checkout,
-                extraBed: data.extraBed,
+                adultCount: data.adultCount,
+                childCount: data.childCount,
+                babyCount: data.babyCount,
+                extraBedCount: data.extraBed,
                 prices: pricing,
                 pricingRules,
                 rooms
@@ -362,6 +398,7 @@ function createApp() {
         try {
             const data = directBookingRequestSchema.parse(req.body);
             validateDateRange(data.checkin, data.checkout);
+            validateOccupancyForRooms(data, data.selectedRoomIds);
 
             const pricing = await db.getPricingSettings();
             const pricingRules = await db.listPricingRules();
@@ -372,7 +409,10 @@ function createApp() {
                 selectedRoomIds: data.selectedRoomIds,
                 checkin: data.checkin,
                 checkout: data.checkout,
-                extraBed: data.extraBed,
+                adultCount: data.adultCount,
+                childCount: data.childCount,
+                babyCount: data.babyCount,
+                extraBedCount: data.extraBed,
                 prices: pricing,
                 pricingRules,
                 rooms
@@ -396,6 +436,7 @@ function createApp() {
         try {
             const data = holdRequestSchema.parse(req.body);
             validateDateRange(data.checkin, data.checkout);
+            validateOccupancyForRooms(data, data.selectedRoomIds);
 
             const pricing = await db.getPricingSettings();
             const pricingRules = await db.listPricingRules();
@@ -406,7 +447,10 @@ function createApp() {
                 selectedRoomIds: data.selectedRoomIds,
                 checkin: data.checkin,
                 checkout: data.checkout,
-                extraBed: data.extraBed,
+                adultCount: data.adultCount,
+                childCount: data.childCount,
+                babyCount: data.babyCount,
+                extraBedCount: data.extraBed,
                 prices: pricing,
                 pricingRules,
                 rooms
@@ -500,6 +544,11 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
                 return res.status(400).json({ message: 'Geen geldige hold gekoppeld aan deze betaling.' });
             }
 
+            const hold = await db.getBookingHoldByToken(holdToken);
+            if (hold && session.amount_total != null && Number(session.amount_total) !== Number(hold.totalPriceCents)) {
+                return res.status(409).json({ message: 'Het betaalde bedrag komt niet overeen met de reservering.' });
+            }
+
             const booking = await db.confirmBookingFromHold(holdToken);
             if (!booking) {
                 return res.status(404).json({ message: 'Hold niet meer beschikbaar.' });
@@ -564,22 +613,6 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
 
     app.get('/api/admin/bootstrap', requireAdmin, async (req, res) => {
         const paymentSettings = await db.getPaymentSettings();
-        if (req.adminUser.mustChangePassword) {
-            return res.json({
-                user: req.adminUser,
-                pricing: null,
-                rooms: [],
-                pricingRules: [],
-                bookings: [],
-                blocks: [],
-                activeHolds: [],
-                paymentSettings: {
-                    stripeConfigured: Boolean(paymentSettings.stripeSecretKey || config.stripeSecretKey),
-                    stripeSecretKeyMasked: maskSecret(paymentSettings.stripeSecretKey || config.stripeSecretKey)
-                }
-            });
-        }
-
         res.json({
             user: req.adminUser,
             pricing: await db.getPricingSettings(),
@@ -596,10 +629,6 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
     });
 
     app.get('/api/admin/payment-settings', requireAdmin, async (req, res) => {
-        if (req.adminUser.mustChangePassword) {
-            return res.status(403).json({ message: 'Wijzig eerst het tijdelijke adminwachtwoord.' });
-        }
-
         const paymentSettings = await db.getPaymentSettings();
         const stripeSecretKey = paymentSettings.stripeSecretKey || config.stripeSecretKey;
         res.json({
@@ -610,7 +639,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         });
     });
 
-    app.put('/api/admin/payment-settings', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res, next) => {
+    app.put('/api/admin/payment-settings', requireAdmin, requireSameOrigin, async (req, res, next) => {
         try {
             const data = paymentSettingsSchema.parse(req.body);
             const paymentSettings = await db.updatePaymentSettings(data);
@@ -655,7 +684,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         }
     });
 
-    app.post('/api/admin/rooms', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res, next) => {
+    app.post('/api/admin/rooms', requireAdmin, requireSameOrigin, async (req, res, next) => {
         try {
             const data = roomCreateSchema.parse(req.body);
             const room = await db.createRoom(data);
@@ -665,7 +694,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         }
     });
 
-    app.put('/api/admin/rooms/:id', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res, next) => {
+    app.put('/api/admin/rooms/:id', requireAdmin, requireSameOrigin, async (req, res, next) => {
         try {
             const room = await db.updateRoom(Number(req.params.id), roomUpdateSchema.parse(req.body));
 
@@ -683,7 +712,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         }
     });
 
-    app.put('/api/admin/pricing', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res, next) => {
+    app.put('/api/admin/pricing', requireAdmin, requireSameOrigin, async (req, res, next) => {
         try {
             const data = priceSchema.parse(req.body);
             await db.updatePricing(data);
@@ -693,11 +722,11 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         }
     });
 
-    app.get('/api/admin/pricing-rules', requireAdmin, requirePasswordChangeCompleted, async (req, res) => {
+    app.get('/api/admin/pricing-rules', requireAdmin, async (req, res) => {
         res.json({ pricingRules: await db.listPricingRules() });
     });
 
-    app.post('/api/admin/pricing-rules', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res, next) => {
+    app.post('/api/admin/pricing-rules', requireAdmin, requireSameOrigin, async (req, res, next) => {
         try {
             const data = pricingRuleSchema.parse(req.body);
             validateInclusiveDateRange(data.start, data.end);
@@ -708,7 +737,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         }
     });
 
-    app.put('/api/admin/pricing-rules/:id', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res, next) => {
+    app.put('/api/admin/pricing-rules/:id', requireAdmin, requireSameOrigin, async (req, res, next) => {
         try {
             const data = pricingRuleSchema.parse(req.body);
             validateInclusiveDateRange(data.start, data.end);
@@ -719,12 +748,12 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         }
     });
 
-    app.delete('/api/admin/pricing-rules/:id', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res) => {
+    app.delete('/api/admin/pricing-rules/:id', requireAdmin, requireSameOrigin, async (req, res) => {
         await db.deletePricingRule(Number(req.params.id));
         res.status(204).send();
     });
 
-    app.post('/api/admin/blocks', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res, next) => {
+    app.post('/api/admin/blocks', requireAdmin, requireSameOrigin, async (req, res, next) => {
         try {
             const data = blockedPeriodSchema.parse(req.body);
             validateInclusiveDateRange(data.start, data.end);
@@ -740,7 +769,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         }
     });
 
-    app.put('/api/admin/blocks/:id', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res, next) => {
+    app.put('/api/admin/blocks/:id', requireAdmin, requireSameOrigin, async (req, res, next) => {
         try {
             const blockId = Number(req.params.id);
             const data = blockedPeriodSchema.parse(req.body);
@@ -761,12 +790,12 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         }
     });
 
-    app.delete('/api/admin/blocks/:id', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res) => {
+    app.delete('/api/admin/blocks/:id', requireAdmin, requireSameOrigin, async (req, res) => {
         await db.deleteBlockedPeriod(Number(req.params.id));
         res.status(204).send();
     });
 
-    app.put('/api/admin/bookings/:id', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res, next) => {
+    app.put('/api/admin/bookings/:id', requireAdmin, requireSameOrigin, async (req, res, next) => {
         try {
             const bookingId = Number(req.params.id);
             const existing = await db.getBookingById(bookingId);
@@ -780,6 +809,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
 
             const selectedRoomIds = data.selectedRoomIds || (data.assignedRoom ? [Number(data.assignedRoom)] : existing.selectedRoomIds);
             await assertRoomsAvailable(selectedRoomIds, data.checkin, data.checkout, bookingId);
+            validateOccupancyForRooms(data, selectedRoomIds);
 
             const booking = await db.updateBooking(bookingId, {
                 ...data,
@@ -791,7 +821,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         }
     });
 
-    app.delete('/api/admin/bookings/:id', requireAdmin, requirePasswordChangeCompleted, requireSameOrigin, async (req, res) => {
+    app.delete('/api/admin/bookings/:id', requireAdmin, requireSameOrigin, async (req, res) => {
         await db.deleteBooking(Number(req.params.id));
         res.status(204).send();
     });
@@ -832,7 +862,7 @@ async function buildRoomOptions(checkin, checkout, extraBed, ignoreHoldToken = n
             roomId: room.id,
             checkin,
             checkout,
-            extraBed,
+            extraBed: false,
             roomsRequested: 1,
             prices: pricing,
             pricingRules,
@@ -844,16 +874,65 @@ async function buildRoomOptions(checkin, checkout, extraBed, ignoreHoldToken = n
             nights: quote.nights,
             stayPriceCents: quote.stayPriceCents,
             extrasPriceCents: quote.extrasPriceCents,
+            subtotalPriceCents: quote.subtotalPriceCents,
+            vatRatePercent: quote.vatRatePercent,
+            vatPriceCents: quote.vatPriceCents,
             totalPriceCents: quote.totalPriceCents,
-            firstNightPriceCents: getNightlyPriceCents({
+            firstNightPriceCents: addVatToPriceCents(getNightlyPriceCents({
                 roomId: room.id,
                 date: checkin,
                 pricingRules,
                 roomBasePriceCents: room.basePriceCents,
                 seasonPricing: pricing
-            })
+            }))
         };
     });
+}
+
+function validateOccupancyForRooms(data, selectedRoomIds) {
+    const roomCount = selectedRoomIds.length;
+    const adultCount = Number(data.adultCount || 0);
+    const childCount = Number(data.childCount || 0);
+    const babyCount = Number(data.babyCount || 0);
+    const extraBedCount = Number(data.extraBed || 0);
+    const babyBedCount = Number(data.babyBed || 0);
+    const payingGuests = adultCount + childCount;
+
+    if (adultCount < 1) {
+        const error = new Error('Er moet minimaal één volwassene meereizen.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (extraBedCount > childCount) {
+        const error = new Error('Extra kinderbedden kunnen alleen voor kinderen worden gebruikt.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (extraBedCount > roomCount) {
+        const error = new Error('Er kan maximaal één extra kinderbed per kamer worden geplaatst.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (babyBedCount > babyCount) {
+        const error = new Error('Babybedjes kunnen alleen voor baby’s worden gebruikt.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (babyBedCount > roomCount) {
+        const error = new Error('Er kan maximaal één babybedje per kamer worden geplaatst.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (payingGuests > (roomCount * 2) + extraBedCount) {
+        const error = new Error('Selecteer meer kamers of voeg een extra kinderbed toe voor dit aantal gasten.');
+        error.statusCode = 409;
+        throw error;
+    }
 }
 
 async function assertRoomsAvailable(selectedRoomIds, checkin, checkout, ignoreBookingId = null, ignoreHoldToken = null) {
@@ -912,14 +991,6 @@ async function requireAdmin(req, res, next) {
         mustChangePassword: Boolean(session.must_change_password),
         role: session.role
     };
-
-    next();
-}
-
-function requirePasswordChangeCompleted(req, res, next) {
-    if (req.adminUser?.mustChangePassword) {
-        return res.status(403).json({ message: 'Wijzig eerst het tijdelijke adminwachtwoord.' });
-    }
 
     next();
 }

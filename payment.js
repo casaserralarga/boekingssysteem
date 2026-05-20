@@ -1,5 +1,6 @@
 (function () {
     const i18n = window.CSLI18N;
+    const BOOKING_DRAFT_KEY = 'csl-booking-draft';
     const holdToken = new URLSearchParams(window.location.search).get('hold');
 
     const elements = {
@@ -7,47 +8,39 @@
         paymentRooms: document.getElementById('paymentRooms'),
         paymentStay: document.getElementById('paymentStay'),
         paymentGuest: document.getElementById('paymentGuest'),
+        paymentSubtotal: document.getElementById('paymentSubtotal'),
+        paymentVat: document.getElementById('paymentVat'),
         paymentTotal: document.getElementById('paymentTotal'),
         holdCountdown: document.getElementById('holdCountdown'),
         payNowButton: document.getElementById('payNowButton'),
+        bookWithoutPayment: document.getElementById('bookWithoutPayment'),
+        paymentActions: document.querySelector('.payment-actions'),
+        expiredActions: document.getElementById('expiredActions'),
         paymentStatus: document.getElementById('paymentStatus')
     };
 
     let hold = null;
     let checkoutUrl = null;
     let countdownTimer = null;
+    let isExpired = false;
 
     document.addEventListener('DOMContentLoaded', () => {
         elements.payNowButton.addEventListener('click', () => void startCheckout());
-const bookBtn = document.getElementById('bookWithoutPayment');
-
-if (bookBtn) {
-    bookBtn.addEventListener('click', async () => {
-        try {
-            const response = await fetch(`/api/public/holds/${encodeURIComponent(holdToken)}/confirm`, {
-                method: 'POST'
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Fout bij boeken');
+        elements.bookWithoutPayment.addEventListener('click', () => void confirmWithoutPayment());
+        window.addEventListener('csl:languagechange', () => {
+            if (isExpired) {
+                showExpiredReservation();
+                return;
             }
 
-            // 👇 doorgaan naar success pagina
-            window.location.href = '/payment-success';
-        } catch (error) {
-            alert(error.message);
-        }
-    });
-}
-        window.addEventListener('csl:languagechange', render);
+            render();
+        });
         void loadHold();
     });
 
     async function loadHold() {
         if (!holdToken) {
-            showStatus(i18n.t('payment.holdExpired'), true);
+            showExpiredReservation();
             return;
         }
 
@@ -57,6 +50,7 @@ if (bookBtn) {
                 const parsed = JSON.parse(cached);
                 hold = parsed.hold;
                 checkoutUrl = parsed.checkoutUrl || null;
+                saveDraftFromHold(hold, parsed.draft);
             }
 
             const response = await fetch(`/api/public/holds/${encodeURIComponent(holdToken)}`);
@@ -67,11 +61,15 @@ if (bookBtn) {
             }
 
             hold = data.hold;
+            saveDraftFromHold(hold);
             render();
             startCountdown();
         } catch (error) {
-            showStatus(error.message || i18n.t('payment.holdExpired'), true);
-            elements.payNowButton.disabled = true;
+            if (hold) {
+                saveDraftFromHold(hold);
+                render();
+            }
+            showExpiredReservation();
         }
     }
 
@@ -106,6 +104,31 @@ if (bookBtn) {
         }
     }
 
+    async function confirmWithoutPayment() {
+        if (!holdToken) {
+            return;
+        }
+
+        try {
+            elements.bookWithoutPayment.disabled = true;
+            const response = await fetch(`/api/public/holds/${encodeURIComponent(holdToken)}/confirm`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Fout bij boeken');
+            }
+
+            window.sessionStorage.setItem('csl-confirmed-booking', JSON.stringify(data.booking));
+            clearBookingDraft();
+            window.location.href = '/payment-success';
+        } catch (error) {
+            elements.bookWithoutPayment.disabled = false;
+            showStatus(error.message || i18n.t('payment.holdExpired'), true);
+        }
+    }
+
     function render() {
         if (!hold) {
             return;
@@ -115,8 +138,21 @@ if (bookBtn) {
         elements.paymentRooms.textContent = hold.selectedRooms.map((room) => room.name).join(', ');
         elements.paymentStay.textContent = `${formatFriendlyDate(hold.checkin)} - ${formatFriendlyDate(hold.checkout)}`;
         elements.paymentGuest.textContent = `${hold.guestName} · ${hold.guestEmail}`;
+        elements.paymentSubtotal.textContent = i18n.formatCurrency(getSubtotalPriceCents(hold));
+        elements.paymentVat.textContent = i18n.formatCurrency(getVatPriceCents(hold));
         elements.paymentTotal.textContent = i18n.formatCurrency(hold.totalPriceCents);
         elements.payNowButton.textContent = i18n.t('payment.payNow');
+        if (isExpired) {
+            showExpiredReservation();
+        }
+    }
+
+    function getSubtotalPriceCents(booking) {
+        return booking.subtotalPriceCents ?? (Number(booking.stayPriceCents || 0) + Number(booking.extrasPriceCents || 0));
+    }
+
+    function getVatPriceCents(booking) {
+        return booking.vatPriceCents ?? Math.max(Number(booking.totalPriceCents || 0) - getSubtotalPriceCents(booking), 0);
     }
 
     function startCountdown() {
@@ -126,10 +162,8 @@ if (bookBtn) {
             const remainingMs = new Date(hold.expiresAt).getTime() - Date.now();
             if (remainingMs <= 0) {
                 clearInterval(countdownTimer);
-                elements.holdCountdown.classList.remove('hidden');
-                elements.holdCountdown.textContent = i18n.t('payment.holdExpired');
-                elements.payNowButton.disabled = true;
-                showStatus(i18n.t('payment.holdExpired'), true);
+                saveDraftFromHold(hold);
+                showExpiredReservation();
                 return;
             }
 
@@ -145,10 +179,67 @@ if (bookBtn) {
         countdownTimer = setInterval(tick, 1000);
     }
 
+    function showExpiredReservation() {
+        isExpired = true;
+        elements.holdCountdown.classList.add('hidden');
+        elements.paymentActions.classList.add('hidden');
+        elements.expiredActions.classList.remove('hidden');
+        elements.payNowButton.disabled = true;
+        elements.bookWithoutPayment.disabled = true;
+        showStatus(i18n.t('payment.holdExpired'), true);
+    }
+
     function showStatus(message, isError = false) {
         elements.paymentStatus.textContent = message;
         elements.paymentStatus.classList.remove('hidden', 'is-error');
         elements.paymentStatus.classList.toggle('is-error', isError);
+    }
+
+    function saveDraftFromHold(holdData, fallbackDraft = null) {
+        if (!holdData && !fallbackDraft) {
+            return;
+        }
+
+        const draft = fallbackDraft || {
+            name: holdData.guestName || '',
+            email: holdData.guestEmail || '',
+            phone: holdData.guestPhone || '',
+            nifNumber: holdData.nifNumber || '',
+            note: holdData.note || '',
+            street: holdData.street || '',
+            houseNumber: holdData.houseNumber || '',
+            postalCode: holdData.postalCode || '',
+            city: holdData.city || '',
+            country: holdData.country || '',
+            checkin: holdData.checkin || '',
+            checkout: holdData.checkout || '',
+            selectedRoomIds: holdData.selectedRoomIds || (holdData.selectedRooms || []).map((room) => room.id),
+            adultCount: holdData.adultCount || 2,
+            childCount: holdData.childCount || 0,
+            babyCount: holdData.babyCount || 0,
+            babyBed: holdData.babyBed || 0,
+            extraBed: holdData.extraBed || 0
+        };
+
+        try {
+            window.sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({
+                ...draft,
+                savedAt: new Date().toISOString()
+            }));
+        } catch {
+            // Session storage can be unavailable in private browsing modes.
+        }
+    }
+
+    function clearBookingDraft() {
+        try {
+            window.sessionStorage.removeItem(BOOKING_DRAFT_KEY);
+            if (holdToken) {
+                window.sessionStorage.removeItem(`csl-hold:${holdToken}`);
+            }
+        } catch {
+            // Ignore storage cleanup failures.
+        }
     }
 
     function formatFriendlyDate(value) {

@@ -26,6 +26,7 @@ locals {
     app_port          = 3000
     app_repo_branch   = local.app_repo_branch
     app_repo_url      = var.app_repo_url
+    backup_retention_days = var.backup_retention_days
     hold_ttl_minutes  = var.hold_ttl_minutes
     letsencrypt_email = var.letsencrypt_email
     public_hostname   = local.fqdn

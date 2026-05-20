@@ -2,6 +2,7 @@ hcloud_token        = "<zet-hier-je-hetzner-api-token>"
 server_name         = "casa-serra-larga"
 location            = "fsn1"
 server_type         = "cpx11"
+backup_retention_days = 14
 ssh_public_key_path = "C:/Users/jij/.ssh/id_ed25519.pub"
 ssh_allowed_cidr    = "203.0.113.10/32"
 

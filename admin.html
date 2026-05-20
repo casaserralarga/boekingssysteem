@@ -290,7 +290,7 @@ p {
 }
 
 .dashboard-stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
 }
 
 .dashboard-stat-card,
@@ -312,14 +312,209 @@ p {
 
 .dashboard-stat-card {
     text-align: left;
-    padding: 22px;
+    padding: 16px 18px;
     display: grid;
-    gap: 10px;
+    gap: 7px;
+    position: relative;
+    overflow: hidden;
+    min-height: 118px;
+    color: var(--ink);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(250, 244, 236, 0.78));
+}
+
+.dashboard-stat-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: var(--accent);
+    opacity: 0.82;
+}
+
+.dashboard-stat-card:hover {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.dashboard-stat-card .dashboard-stat-label,
+.dashboard-stat-card .dashboard-stat-note {
+    position: relative;
+    color: var(--muted);
 }
 
 .dashboard-stat-value {
-    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    position: relative;
+    color: var(--accent-dark);
+    font-size: clamp(1.7rem, 2.2vw, 2.35rem);
     font-family: Georgia, "Times New Roman", serif;
+    line-height: 0.95;
+    overflow-wrap: anywhere;
+}
+
+#view-dashboard > .section-head h2 {
+    font-size: clamp(1.75rem, 2.4vw, 2.35rem);
+}
+
+.dashboard-panel h3 {
+    font-size: clamp(1.25rem, 1.7vw, 1.65rem);
+    line-height: 1.05;
+}
+
+.dashboard-panel .compact-head {
+    align-items: flex-start;
+}
+
+.dashboard-panel .compact-head .link-button {
+    flex: 0 0 auto;
+}
+
+.dashboard-work-grid {
+    align-items: stretch;
+}
+
+.dashboard-panel {
+    padding: 0;
+    overflow: hidden;
+}
+
+.dashboard-panel .compact-head {
+    padding: 18px 20px 0;
+}
+
+.dashboard-panel-list {
+    padding: 0 20px 20px;
+}
+
+.dashboard-list {
+    display: grid;
+    gap: 12px;
+    max-height: 560px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(165, 76, 46, 0.42) transparent;
+}
+
+.dashboard-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dashboard-list::-webkit-scrollbar-thumb {
+    background: rgba(165, 76, 46, 0.34);
+    border-radius: 999px;
+}
+
+.dashboard-empty {
+    padding: 18px;
+    border: 1px dashed rgba(90, 64, 44, 0.2);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.46);
+    color: var(--muted);
+}
+
+.dashboard-list-item,
+.dashboard-hold-card {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(90, 64, 44, 0.12);
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 12px 30px rgba(69, 46, 28, 0.07);
+}
+
+.dashboard-list-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+.dashboard-list-item:hover,
+.dashboard-hold-card:hover {
+    border-color: rgba(165, 76, 46, 0.24);
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.dashboard-list-main,
+.dashboard-hold-main {
+    min-width: 0;
+    display: grid;
+    gap: 8px;
+}
+
+.dashboard-list-title-row,
+.dashboard-hold-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.dashboard-list-item h3,
+.dashboard-hold-card h3 {
+    font-family: Aptos, "Segoe UI", sans-serif;
+    font-size: 1rem;
+    line-height: 1.2;
+}
+
+.dashboard-list-subline,
+.dashboard-hold-main p {
+    color: var(--muted);
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-list-meta,
+.dashboard-hold-meta-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.dashboard-list-meta span,
+.dashboard-hold-meta-grid div {
+    min-height: 30px;
+    padding: 7px 10px;
+    border-radius: 12px;
+    background: rgba(246, 237, 227, 0.72);
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.dashboard-list-meta .admin-badge {
+    min-height: 30px;
+    padding: 7px 10px;
+}
+
+.dashboard-list-action {
+    align-self: stretch;
+    padding-inline: 16px;
+}
+
+.dashboard-hold-list {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    max-height: 620px;
+}
+
+.dashboard-hold-card {
+    align-content: start;
+}
+
+.dashboard-hold-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-hold-meta-grid strong {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--ink);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.hold-time-pill {
+    white-space: nowrap;
 }
 
 .admin-grid-split {
@@ -332,7 +527,19 @@ p {
 }
 
 .field-grid-address {
-    grid-template-columns: minmax(0, 1.3fr) minmax(130px, 0.7fr);
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
+}
+
+.address-street-field {
+    grid-column: 1 / 2;
+}
+
+.address-house-field {
+    grid-column: 2 / 3;
+}
+
+.address-line-field {
+    grid-column: 1 / -1;
 }
 
 .admin-toolbar-grid {
@@ -580,6 +787,22 @@ p {
         grid-template-columns: 1fr;
     }
 
+    .dashboard-list-item,
+    .dashboard-hold-meta-grid,
+    .dashboard-hold-list {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-list-action {
+        width: 100%;
+    }
+
+    .address-street-field,
+    .address-house-field,
+    .address-line-field {
+        grid-column: 1;
+    }
+
     .planner-row {
         grid-template-columns: 108px repeat(31, minmax(18px, 1fr));
     }
@@ -647,8 +870,8 @@ p {
                 </div>
             </div>
             <div id="dashboardStats" class="dashboard-stats-grid"></div>
-            <div class="admin-grid-split">
-                <section class="admin-section">
+            <div class="admin-grid-split dashboard-work-grid">
+                <section class="admin-section dashboard-panel">
                     <div class="section-head compact-head">
                         <div>
                             <h3>Nieuwe aanvragen</h3>
@@ -656,9 +879,9 @@ p {
                         </div>
                         <button type="button" class="link-button" data-dashboard-action="show-pending">Alles bekijken</button>
                     </div>
-                    <div id="dashboardPending"></div>
+                    <div id="dashboardPending" class="dashboard-list dashboard-panel-list"></div>
                 </section>
-                <section class="admin-section">
+                <section class="admin-section dashboard-panel">
                     <div class="section-head compact-head">
                         <div>
                             <h3>Komende check-ins</h3>
@@ -666,10 +889,10 @@ p {
                         </div>
                         <button type="button" class="link-button" data-dashboard-action="show-upcoming">Open boekingen</button>
                     </div>
-                    <div id="dashboardUpcoming"></div>
+                    <div id="dashboardUpcoming" class="dashboard-list dashboard-panel-list"></div>
                 </section>
             </div>
-            <section class="admin-section">
+            <section class="admin-section dashboard-panel dashboard-panel-wide">
                 <div class="section-head compact-head">
                     <div>
                         <h3>Actieve holds</h3>
@@ -677,7 +900,7 @@ p {
                     </div>
                     <button type="button" class="link-button" data-view-jump="planning">Naar planning</button>
                 </div>
-                <div id="dashboardHolds"></div>
+                <div id="dashboardHolds" class="dashboard-list dashboard-hold-list dashboard-panel-list"></div>
             </section>
         </section>
 
@@ -761,10 +984,9 @@ p {
                                 <input id="newRoomName" type="text" placeholder="Kamer 7" required>
                             </label>
                             <label class="field">
-                                <span>Vaste prijs per nacht (€)</span>
+                                <span>Vaste prijs per nacht excl. btw (€)</span>
                                 <input id="newRoomBasePrice" type="number" min="0" step="0.01" placeholder="Bijvoorbeeld 95" required>
                             </label>
-                        </label>
                         <div class="button-row-inline admin-align-end">
                             <button type="submit">Kamer toevoegen</button>
                         </div>
@@ -786,7 +1008,7 @@ p {
             <div class="section-head section-head-inline">
                 <div>
                     <h2>Prijzen</h2>
-                    <p>Bekijk vaste prijzen per kamer en maak uitzonderingen per kamer voor specifieke datums.</p>
+                    <p>Bekijk vaste prijzen per kamer en maak uitzonderingen per kamer voor specifieke datums. Prijzen voer je excl. btw in.</p>
                 </div>
             </div>
             <div class="admin-grid-split admin-grid-top">
@@ -794,7 +1016,7 @@ p {
                     <div class="section-head compact-head">
                         <div>
                             <h3>Vaste prijzen per kamer</h3>
-                            <p>De vaste prijs beheer je bij Kamers. Hieronder zie je per kamer het huidige basistarief.</p>
+                            <p>De vaste prijs beheer je bij Kamers. Hieronder zie je per kamer het huidige basistarief excl. btw.</p>
                         </div>
                     </div>
                     <div id="roomPriceOverview" class="admin-stack"></div>
@@ -813,7 +1035,7 @@ p {
                                 <select id="ruleRoom" required></select>
                             </label>
                             <label class="field">
-                                <span>Prijs per nacht (€)</span>
+                                <span>Prijs per nacht excl. btw (€)</span>
                                 <input id="ruleNightly" type="number" min="0" step="0.01" required>
                             </label>
                             <label class="field">
@@ -1003,23 +1225,25 @@ p {
                             <span>E-mail</span>
                             <input id="editEmail" type="email">
                         </label>
+                        <label class="field">
+                            <span>NIF nummer</span>
+                            <input id="editNifNumber" type="text" inputmode="numeric">
+                        </label>
                     </div>
                     <div class="field-grid field-grid-address">
-                        <label class="field">
+                        <label class="field address-street-field">
                             <span>Straat</span>
                             <input id="editStreet" type="text">
                         </label>
-                        <label class="field">
+                        <label class="field address-house-field">
                             <span>Huisnummer</span>
                             <input id="editHouseNumber" type="text">
                         </label>
-                    </div>
-                    <div class="field-grid">
-                        <label class="field">
+                        <label class="field address-line-field">
                             <span>Postcode</span>
                             <input id="editPostalCode" type="text">
                         </label>
-                        <label class="field">
+                        <label class="field address-line-field">
                             <span>Plaats</span>
                             <input id="editCity" type="text">
                         </label>
@@ -1052,13 +1276,25 @@ p {
                     </label>
 
                     <div class="field-grid">
+                        <label class="field">
+                            <span>Aantal volwassenen</span>
+                            <input id="editAdultCount" type="number" min="1" max="20">
+                        </label>
+                        <label class="field">
+                            <span>Aantal kinderen t/m 12 jaar</span>
+                            <input id="editChildCount" type="number" min="0" max="20">
+                        </label>
+                        <label class="field">
+                            <span>Aantal baby's</span>
+                            <input id="editBabyCount" type="number" min="0" max="20">
+                        </label>
                         <label class="checkbox-field">
                             <input id="editBabyBed" type="checkbox">
-                            <span><strong>Babybed</strong><small>Extra voorziening voor deze boeking</small></span>
+                            <span><strong>Babybed</strong><small>Gratis voorziening</small></span>
                         </label>
                         <label class="checkbox-field">
                             <input id="editExtraBed" type="checkbox">
-                            <span><strong>Extra bed</strong><small>Reken toeslag mee bij prijs</small></span>
+                            <span><strong>Extra kinderbed</strong><small>Reken toeslag mee bij prijs</small></span>
                         </label>
                     </div>
 
@@ -1075,11 +1311,11 @@ p {
 
                     <div class="field-grid">
                         <label class="field">
-                            <span>Verblijf (€)</span>
+                            <span>Verblijf excl. btw (€)</span>
                             <input id="editStayPrice" type="number" min="0" step="0.01">
                         </label>
                         <label class="field">
-                            <span>Extra's (€)</span>
+                            <span>Extra's excl. btw (€)</span>
                             <input id="editExtras" type="number" min="0" step="0.01">
                         </label>
                     </div>
@@ -1102,6 +1338,6 @@ p {
     </div>
 </div>
 
-<script src="admin.js?v=20260418-6"></script>
+<script src="admin.js?v=20260520-4"></script>
 </body>
 </html>

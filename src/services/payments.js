@@ -45,7 +45,11 @@ async function createStripeCheckoutSession({ hold, roomName }) {
         customer_email: hold.guestEmail,
         metadata: {
             holdToken: hold.holdToken,
-            roomIds: hold.selectedRoomIds.join(',')
+            roomIds: hold.selectedRoomIds.join(','),
+            subtotalPriceCents: String(hold.subtotalPriceCents || 0),
+            vatRatePercent: String(hold.vatRatePercent || 6),
+            vatPriceCents: String(hold.vatPriceCents || 0),
+            totalPriceCents: String(hold.totalPriceCents || 0)
         },
         line_items: [
             {
@@ -53,14 +57,19 @@ async function createStripeCheckoutSession({ hold, roomName }) {
                 price_data: {
                     currency: 'eur',
                     unit_amount: hold.totalPriceCents,
+                    tax_behavior: 'inclusive',
                     product_data: {
                         name: `Verblijf ${roomName}`,
-                        description: `${hold.checkin} tot ${hold.checkout}`
+                        description: `${hold.checkin} tot ${hold.checkout} · incl. 6% btw (${formatEuroCents(hold.vatPriceCents)})`
                     }
                 }
             }
         ]
     });
+}
+
+function formatEuroCents(cents) {
+    return `EUR ${(Number(cents || 0) / 100).toFixed(2)}`;
 }
 
 async function retrieveStripeCheckoutSession(sessionId) {

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=20260418-6">
+<link rel="stylesheet" href="/styles.css?v=20260520-7">
 </head>
 <body data-page="paymentSuccess">
 <div class="site-shell site-shell-success">
@@ -21,7 +21,15 @@
                 <span data-i18n="paymentSuccess.referenceLabel"></span>
                 <strong id="successReference"></strong>
             </div>
-            <div class="summary-line">
+            <div class="summary-line summary-addend summary-addend-first">
+                <span data-i18n="paymentSuccess.subtotalLabel"></span>
+                <strong id="successSubtotal"></strong>
+            </div>
+            <div class="summary-line summary-addend">
+                <span data-i18n="paymentSuccess.vatLabel"></span>
+                <strong id="successVat"></strong>
+            </div>
+            <div class="summary-total">
                 <span data-i18n="paymentSuccess.totalLabel"></span>
                 <strong id="successTotal"></strong>
             </div>
@@ -39,7 +47,7 @@
     </main>
 </div>
 
-<script src="/site.js?v=20260418-6"></script>
-<script src="/payment-success.js?v=20260418-3"></script>
+<script src="/site.js?v=20260520-12"></script>
+<script src="/payment-success.js?v=20260520-7"></script>
 </body>
 </html>
