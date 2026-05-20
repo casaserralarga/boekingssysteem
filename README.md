@@ -701,3 +701,5 @@ Als je dit project nu simpel en goedkoop wilt gebruiken:
 * talen aanpassen: in `site.js` en de taalbuttons in de publieke HTML-bestanden
 * Azure/Bicep: prima voor infrastructuur, maar gebruik voor deze code dan een Linux VM en niet direct een PaaS-opzet
 
+"# boekingssysteem" 
+"# boekingssysteem" 
