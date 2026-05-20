@@ -59,9 +59,12 @@ Gebruik dit overzicht als startpunt in VS Code:
 
 ## Productiehosting
 
-Voor goedkope productiehosting is deze app voorbereid op een kleine Hetzner Cloud VPS met Node.js, Nginx, Let's Encrypt, SQLite en dagelijkse databasebackups.
+Voor goedkope productiehosting is deze app voorbereid op een kleine VPS met Node.js, Nginx, Let's Encrypt, SQLite en dagelijkse databasebackups.
 
-Zie [docs/deploy-hetzner.md](docs/deploy-hetzner.md) voor de volledige deploystappen.
+Er zijn twee uitgewerkte routes:
+
+* [docs/deploy-hetzner.md](docs/deploy-hetzner.md): automatische VPS-uitrol met Terraform.
+* [docs/deploy-strato.md](docs/deploy-strato.md): handmatige VPS-uitrol via SSH, passend voor Strato Linux VPS.
 
 ## Hoe draai je dit lokaal op je pc
 
