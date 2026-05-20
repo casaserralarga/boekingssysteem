@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt String   @map("updated_at")
+
+  @@map("settings")
+}
+
+model Booking {
+  id               Int           @id @default(autoincrement())
+  referenceCode    String        @unique @map("reference_code")
+  name             String
+  email            String
+  phone            String        @default("")
+  note             String        @default("")
+  street           String        @default("")
+  houseNumber      String        @default("") @map("house_number")
+  postalCode       String        @default("") @map("postal_code")
+  city             String        @default("")
+  country          String        @default("")
+  checkin          String
+  checkout         String
+  babyBed          Int           @default(0) @map("baby_bed")
+  extraBed         Int           @default(0) @map("extra_bed")
+  roomsRequested   Int           @default(1) @map("rooms_requested")
+  assignedRoom     Int?          @map("assigned_room")
+  stayPriceCents   Int           @map("stay_price_cents")
+  extrasPriceCents Int           @map("extras_price_cents")
+  totalPriceCents  Int           @map("total_price_cents")
+  status           String        @default("pending")
+  mailSent         Int           @default(0) @map("mail_sent")
+  depositPaid      Int           @default(0) @map("deposit_paid")
+  paid             Int           @default(0)
+  checkedIn        Int           @default(0) @map("checked_in")
+  checkedOut       Int           @default(0) @map("checked_out")
+  createdAt        String        @map("created_at")
+  updatedAt        String        @map("updated_at")
+  bookingRooms     BookingRoom[]
+
+  @@map("bookings")
+}
+
+model BlockedPeriod {
+  id        Int    @id @default(autoincrement())
+  startDate String @map("start_date")
+  endDate   String @map("end_date")
+  reason    String @default("")
+  createdAt String @map("created_at")
+  blockedRooms BlockedPeriodRoom[]
+
+  @@map("blocked_periods")
+}
+
+model AdminUser {
+  id           Int       @id @default(autoincrement())
+  username     String?
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  passwordSalt String    @map("password_salt")
+  mustChangePassword Int  @default(0) @map("must_change_password")
+  role         String    @default("admin")
+  createdAt    String    @map("created_at")
+  updatedAt    String    @map("updated_at")
+  sessions     Session[]
+
+  @@map("admin_users")
+}
+
+model Session {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt String    @map("expires_at")
+  createdAt String    @map("created_at")
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Room {
+  id            Int           @id @default(autoincrement())
+  roomNumber    Int           @unique @map("room_number")
+  name          String
+  shortName     String        @map("short_name")
+  basePriceCents Int?         @map("base_price_cents")
+  isActive      Int           @default(1) @map("is_active")
+  createdAt     String        @map("created_at")
+  updatedAt     String        @map("updated_at")
+  bookingRooms  BookingRoom[]
+  holdRooms     BookingHoldRoom[]
+  pricingRules  PricingRule[]
+  blockedPeriodRooms BlockedPeriodRoom[]
+
+  @@map("rooms")
+}
+
+model BlockedPeriodRoom {
+  blockedPeriodId Int           @map("blocked_period_id")
+  roomId          Int           @map("room_id")
+  createdAt       String        @map("created_at")
+  blockedPeriod   BlockedPeriod @relation(fields: [blockedPeriodId], references: [id], onDelete: Cascade)
+  room            Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([blockedPeriodId, roomId])
+  @@map("blocked_period_rooms")
+}
+
+model BookingRoom {
+  bookingId Int     @map("booking_id")
+  roomId    Int     @map("room_id")
+  createdAt String  @map("created_at")
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  room      Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([bookingId, roomId])
+  @@map("booking_rooms")
+}
+
+model PricingRule {
+  id               Int    @id @default(autoincrement())
+  roomId           Int    @map("room_id")
+  startDate        String @map("start_date")
+  endDate          String @map("end_date")
+  nightlyPriceCents Int   @map("nightly_price_cents")
+  label            String @default("")
+  createdAt        String @map("created_at")
+  updatedAt        String @map("updated_at")
+  room             Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("pricing_rules")
+}
+
+model BookingHold {
+  id               Int               @id @default(autoincrement())
+  holdToken        String            @unique @map("hold_token")
+  guestName        String            @map("guest_name")
+  guestEmail       String            @map("guest_email")
+  guestPhone       String            @default("") @map("guest_phone")
+  note             String            @default("")
+  street           String            @default("")
+  houseNumber      String            @default("") @map("house_number")
+  postalCode       String            @default("") @map("postal_code")
+  city             String            @default("")
+  country          String            @default("")
+  checkin          String
+  checkout         String
+  babyBed          Int               @default(0) @map("baby_bed")
+  extraBed         Int               @default(0) @map("extra_bed")
+  stayPriceCents   Int               @map("stay_price_cents")
+  extrasPriceCents Int               @map("extras_price_cents")
+  totalPriceCents  Int               @map("total_price_cents")
+  status           String            @default("held")
+  stripeSessionId  String?           @unique @map("stripe_session_id")
+  expiresAt        String            @map("expires_at")
+  createdAt        String            @map("created_at")
+  updatedAt        String            @map("updated_at")
+  holdRooms        BookingHoldRoom[]
+
+  @@map("booking_holds")
+}
+
+model BookingHoldRoom {
+  holdId    Int         @map("hold_id")
+  roomId    Int         @map("room_id")
+  createdAt String      @map("created_at")
+  hold      BookingHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
+  room      Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([holdId, roomId])
+  @@map("booking_hold_rooms")
+}

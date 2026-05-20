@@ -1,0 +1,125 @@
+#cloud-config
+users:
+  - default
+  - name: ${admin_username}
+    groups: sudo
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - nginx
+
+write_files:
+  - path: /usr/local/bin/bootstrap-casa-serra-larga.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euxo pipefail
+
+      export DEBIAN_FRONTEND=noninteractive
+      APP_NAME="${app_name}"
+      APP_DIR="${app_directory}"
+      APP_USER="${admin_username}"
+      APP_REPO_URL="${app_repo_url}"
+      APP_REPO_BRANCH="${app_repo_branch}"
+
+      if ! command -v node >/dev/null 2>&1; then
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+        apt-get install -y nodejs
+      fi
+
+      npm install -g pm2
+
+      install -d -o "$APP_USER" -g "$APP_USER" "$APP_DIR"
+      install -d -o "$APP_USER" -g "$APP_USER" "$APP_DIR/data"
+
+      if [ ! -d "$APP_DIR/.git" ]; then
+        rm -rf "$APP_DIR"
+        sudo -u "$APP_USER" git clone --branch "$APP_REPO_BRANCH" "$APP_REPO_URL" "$APP_DIR"
+      else
+        sudo -u "$APP_USER" git -C "$APP_DIR" fetch --all
+        sudo -u "$APP_USER" git -C "$APP_DIR" checkout "$APP_REPO_BRANCH"
+        sudo -u "$APP_USER" git -C "$APP_DIR" pull origin "$APP_REPO_BRANCH"
+      fi
+
+      cat > "$APP_DIR/.env" <<'EOF'
+      PORT=${app_port}
+      NODE_ENV=production
+      APP_ORIGIN=${app_origin}
+      SESSION_TTL_DAYS=${session_ttl_days}
+      HOLD_TTL_MINUTES=${hold_ttl_minutes}
+      DATABASE_URL=file:./data/reservations.sqlite
+      STRIPE_SECRET_KEY=${stripe_secret_key}
+      EOF
+
+      chown "$APP_USER:$APP_USER" "$APP_DIR/.env"
+      chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+
+      sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && npm install --omit=dev && npx prisma generate && npx prisma db push"
+
+      systemctl daemon-reload
+      systemctl enable casa-serra-larga.service
+      systemctl restart casa-serra-larga.service
+
+      ln -sfn /etc/nginx/sites-available/casa-serra-larga /etc/nginx/sites-enabled/casa-serra-larga
+      rm -f /etc/nginx/sites-enabled/default
+      nginx -t
+      systemctl enable nginx
+      systemctl restart nginx
+
+      if [ -n "${letsencrypt_email}" ] && [ "${public_hostname}" != "" ]; then
+        apt-get install -y certbot python3-certbot-nginx
+        certbot --nginx --non-interactive --agree-tos --email "${letsencrypt_email}" -d "${public_hostname}" --redirect || true
+      fi
+  - path: /etc/systemd/system/casa-serra-larga.service
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Casa Serra Larga reservation system
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=${admin_username}
+      Group=${admin_username}
+      WorkingDirectory=${app_directory}
+      Environment=PATH=/usr/local/bin:/usr/bin:/bin
+      ExecStart=/usr/bin/env node server.js
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/nginx/sites-available/casa-serra-larga
+    permissions: '0644'
+    owner: root:root
+    content: |
+      server {
+          listen 80;
+          server_name ${public_hostname} _;
+
+          client_max_body_size 10m;
+
+          location / {
+              proxy_pass http://127.0.0.1:${app_port};
+              proxy_http_version 1.1;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection upgrade;
+          }
+      }
+
+runcmd:
+  - /usr/local/bin/bootstrap-casa-serra-larga.sh

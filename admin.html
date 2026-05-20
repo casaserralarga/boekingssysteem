@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Casa Serra Larga</title>
+<style>
+:root {
+    --bg: #f3ecdf;
+    --surface: rgba(255, 250, 243, 0.82);
+    --surface-strong: #fff8f0;
+    --surface-soft: rgba(255, 255, 255, 0.64);
+    --line: rgba(90, 64, 44, 0.12);
+    --ink: #231a13;
+    --muted: #6e5b4e;
+    --accent: #a54c2e;
+    --accent-dark: #7b311b;
+    --success: #2f6f4f;
+    --warning: #b86a1b;
+    --danger: #b33f34;
+    --shadow: 0 26px 80px rgba(69, 46, 28, 0.16);
+    --radius: 26px;
+    --radius-small: 18px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+}
+
+body {
+    font-family: Aptos, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.82), transparent 36%),
+        radial-gradient(circle at top right, rgba(165, 76, 46, 0.14), transparent 28%),
+        linear-gradient(180deg, #f8f2e8 0%, #ecdfcf 52%, #f5efe6 100%);
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 18px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff8f0;
+    transition: transform 160ms ease, opacity 160ms ease, background 160ms ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+}
+
+.secondary-button,
+.link-button,
+.admin-nav button,
+#closeBtn,
+#bookingResetFilters {
+    background: rgba(255, 255, 255, 0.64);
+    color: var(--ink);
+}
+
+.danger-button {
+    background: rgba(179, 63, 52, 0.12);
+    color: var(--danger);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.admin-container {
+    width: min(1280px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 28px 0 56px;
+}
+
+.auth-card,
+.admin-panel-surface,
+.admin-section,
+.dashboard-card,
+.popup-content,
+.booking-results-head {
+    backdrop-filter: blur(16px);
+    background: var(--surface);
+    border: 1px solid rgba(255, 255, 255, 0.54);
+    box-shadow: var(--shadow);
+    border-radius: var(--radius);
+}
+
+.auth-card,
+.admin-section,
+.popup-content {
+    padding: 28px;
+}
+
+.admin-login-card {
+    width: min(560px, 100%);
+    margin: 6vh auto 0;
+}
+
+.auth-form,
+.admin-shell,
+.admin-view,
+.admin-form-stack,
+.admin-stack,
+#dashboardPending,
+#dashboardUpcoming,
+#dashboardHolds,
+#bookingTimeline,
+#pricingRulesList,
+#blockList {
+    display: grid;
+    gap: 18px;
+}
+
+.eyebrow {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 0.75rem;
+    color: var(--accent-dark);
+}
+
+h1,
+h2,
+h3 {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 0.95;
+}
+
+h1 {
+    font-size: clamp(2.5rem, 5vw, 4.2rem);
+}
+
+h2 {
+    font-size: clamp(2rem, 4vw, 3rem);
+}
+
+h3 {
+    font-size: clamp(1.4rem, 2vw, 2rem);
+}
+
+p {
+    margin: 0;
+    line-height: 1.6;
+}
+
+.brand-subtitle,
+.section-head p,
+.dashboard-stat-label,
+.dashboard-stat-note,
+.booking-actions p,
+.room-admin-card-head p,
+.booking-compact-card p,
+.booking-results-head span {
+    color: var(--muted);
+}
+
+.field,
+.checkbox-field {
+    display: grid;
+    gap: 8px;
+}
+
+.field span,
+.checkbox-field strong {
+    font-size: 0.95rem;
+    color: var(--muted);
+}
+
+.field input,
+.field textarea,
+.field select,
+.popup-content input,
+.popup-content textarea,
+.popup-content select {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 15px 16px;
+    background: rgba(255, 255, 255, 0.76);
+    color: var(--ink);
+}
+
+.field textarea,
+.popup-content textarea {
+    resize: vertical;
+}
+
+.checkbox-field {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.54);
+    border-radius: 18px;
+    border: 1px solid var(--line);
+}
+
+.checkbox-field input {
+    width: 18px;
+    height: 18px;
+}
+
+.field-error {
+    margin: 0;
+    color: var(--danger);
+    font-size: 0.9rem;
+}
+
+.status-message {
+    border-radius: 18px;
+    padding: 14px 16px;
+    background: rgba(47, 111, 79, 0.1);
+    color: var(--success);
+}
+
+.status-message.is-error {
+    background: rgba(179, 63, 52, 0.1);
+    color: var(--danger);
+}
+
+.admin-topbar,
+.section-head-inline,
+.compact-head,
+.booking-actions,
+.button-row,
+.button-row-inline,
+.room-admin-card-head,
+.booking-modal-head,
+.planner-nav,
+.booking-compact-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.admin-topbar {
+    padding: 28px;
+}
+
+.admin-topbar-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.admin-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px;
+}
+
+.admin-nav button.is-active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff8f0;
+}
+
+.dashboard-stats-grid,
+.admin-grid-split,
+.admin-toolbar-grid,
+.booking-list-grid,
+.admin-chip-grid,
+.field-grid,
+.field-grid-address,
+.booking-meta,
+.hold-meta,
+.admin-check-grid,
+.planner-legend,
+.admin-callout-grid {
+    display: grid;
+    gap: 16px;
+}
+
+.dashboard-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.dashboard-stat-card,
+.booking-card,
+.hold-card,
+.pricing-rule-card,
+.block-card,
+.room-admin-card,
+.booking-compact-card,
+.dashboard-card {
+    border-radius: 22px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.dashboard-card {
+    padding: 20px;
+}
+
+.dashboard-stat-card {
+    text-align: left;
+    padding: 22px;
+    display: grid;
+    gap: 10px;
+}
+
+.dashboard-stat-value {
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+.admin-grid-split {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    align-items: start;
+}
+
+.field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-grid-address {
+    grid-template-columns: minmax(0, 1.3fr) minmax(130px, 0.7fr);
+}
+
+.admin-toolbar-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    align-items: end;
+}
+
+.admin-toolbar-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+}
+
+.booking-results-head {
+    padding: 18px 24px;
+}
+
+.booking-list-grid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.booking-card,
+.room-admin-card,
+.booking-compact-card,
+.hold-card,
+.pricing-rule-card,
+.block-card {
+    padding: 20px;
+}
+
+.booking-meta,
+.hold-meta,
+.admin-callout-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.admin-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.badge-success {
+    background: rgba(47, 111, 79, 0.12);
+    color: var(--success);
+}
+
+.badge-warning {
+    background: rgba(184, 106, 27, 0.12);
+    color: var(--warning);
+}
+
+.badge-danger {
+    background: rgba(179, 63, 52, 0.12);
+    color: var(--danger);
+}
+
+.badge-muted {
+    background: rgba(110, 91, 78, 0.14);
+    color: var(--muted);
+}
+
+.planner-legend {
+    grid-auto-flow: column;
+    justify-content: flex-start;
+    margin-bottom: 10px;
+}
+
+.planner-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+}
+
+.planner-jump-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: end;
+    margin-bottom: 12px;
+}
+
+.planner-jump-bar .field {
+    min-width: 220px;
+    margin: 0;
+}
+
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.legend-dot.free,
+.planner-cell.free {
+    background: rgba(47, 111, 79, 0.18);
+}
+
+.legend-dot.held,
+.planner-cell.held {
+    background: rgba(184, 106, 27, 0.24);
+}
+
+.legend-dot.booked,
+.planner-cell.booked {
+    background: rgba(179, 63, 52, 0.24);
+}
+
+.planner-scroll {
+    overflow-x: auto;
+}
+
+.planner-grid {
+    min-width: 920px;
+}
+
+.planner-row {
+    display: grid;
+    gap: 6px;
+    grid-template-columns: 180px repeat(31, minmax(24px, 1fr));
+    margin-bottom: 6px;
+}
+
+.planner-cell,
+.planner-room {
+    min-height: 36px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(90, 64, 44, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.planner-room {
+    justify-content: flex-start;
+    padding: 0 10px;
+}
+
+.planner-cell-head {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.popup {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(25, 17, 12, 0.48);
+}
+
+.popup-content {
+    width: min(1080px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow: auto;
+}
+
+.admin-callout {
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(246, 237, 227, 0.84));
+    border: 1px solid var(--line);
+}
+
+.admin-chip-grid {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.admin-check-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    padding: 16px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.52);
+}
+
+.admin-check-grid label {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.admin-align-end {
+    justify-content: flex-end;
+}
+
+.admin-section-narrow {
+    width: min(560px, 100%);
+}
+
+@media (max-width: 1100px) {
+    .admin-grid-split {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .admin-container {
+        width: min(100% - 20px, 1280px);
+    }
+
+    .auth-card,
+    .admin-section,
+    .popup-content,
+    .admin-topbar {
+        padding: 20px;
+        border-radius: 20px;
+    }
+
+    .admin-topbar,
+    .section-head-inline,
+    .compact-head,
+    .booking-actions,
+    .button-row,
+    .button-row-inline,
+    .room-admin-card-head,
+    .booking-modal-head,
+    .planner-nav,
+    .booking-compact-meta {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-topbar-actions,
+    .admin-nav {
+        flex-direction: column;
+    }
+
+    .admin-toolbar-grid,
+    .dashboard-stats-grid,
+    .booking-list-grid,
+    .field-grid,
+    .field-grid-address {
+        grid-template-columns: 1fr;
+    }
+
+    .planner-row {
+        grid-template-columns: 108px repeat(31, minmax(18px, 1fr));
+    }
+
+    .planner-jump-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    button {
+        width: 100%;
+    }
+}
+</style>
+</head>
+<body>
+<div class="admin-container">
+    <section id="loginCard" class="auth-card admin-login-card">
+        <p class="eyebrow">Beheeromgeving</p>
+        <h1>Casa Serra Larga</h1>
+        <div id="loginError" class="status-message hidden"></div>
+        <form id="loginForm" class="auth-form" novalidate>
+            <label class="field">
+                <span>Gebruikersnaam</span>
+                <input id="loginIdentifier" type="text" autocomplete="username" required>
+                <p id="loginIdentifierError" class="field-error hidden"></p>
+            </label>
+            <label class="field">
+                <span>Wachtwoord</span>
+                <input id="loginPassword" type="password" autocomplete="current-password" required>
+                <p id="loginPasswordError" class="field-error hidden"></p>
+            </label>
+            <button type="submit">Inloggen</button>
+        </form>
+    </section>
+
+    <div id="adminApp" class="admin-shell hidden">
+        <header class="admin-topbar admin-panel-surface">
+            <div class="admin-topbar-copy">
+                <p class="eyebrow">Dashboard</p>
+                <h1>Casa Serra Larga beheer</h1>
+            </div>
+            <div class="admin-topbar-actions">
+                <button id="dashboardBookingsBtn" type="button" class="secondary-button">Ga naar boekingen</button>
+                <button id="logoutBtn" type="button">Uitloggen</button>
+            </div>
+        </header>
+
+        <div id="adminStatus" class="status-message hidden"></div>
+
+        <nav class="admin-nav admin-panel-surface" aria-label="Admin navigatie">
+            <button type="button" data-view="dashboard" class="is-active">Dashboard</button>
+            <button type="button" data-view="bookings">Boekingen</button>
+            <button type="button" data-view="rooms">Kamers</button>
+            <button type="button" data-view="pricing">Prijzen</button>
+            <button type="button" data-view="planning">Planning</button>
+            <button type="button" data-view="security">Beveiliging</button>
+        </nav>
+
+        <section id="view-dashboard" class="admin-view">
+            <div class="section-head section-head-inline">
+                <div>
+                    <h2>Overzicht</h2>
+                    <p>Zie in één oogopslag hoeveel aanvragen, aankomsten en open betalingen er zijn.</p>
+                </div>
+            </div>
+            <div id="dashboardStats" class="dashboard-stats-grid"></div>
+            <div class="admin-grid-split">
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Nieuwe aanvragen</h3>
+                            <p>Boekingen die nog aandacht of bevestiging nodig hebben.</p>
+                        </div>
+                        <button type="button" class="link-button" data-dashboard-action="show-pending">Alles bekijken</button>
+                    </div>
+                    <div id="dashboardPending"></div>
+                </section>
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Komende check-ins</h3>
+                            <p>De eerstvolgende aankomsten zodat je snel kunt plannen.</p>
+                        </div>
+                        <button type="button" class="link-button" data-dashboard-action="show-upcoming">Open boekingen</button>
+                    </div>
+                    <div id="dashboardUpcoming"></div>
+                </section>
+            </div>
+            <section class="admin-section">
+                <div class="section-head compact-head">
+                    <div>
+                        <h3>Actieve holds</h3>
+                        <p>Tijdelijke reserveringen die nog kunnen vervallen of betaald worden.</p>
+                    </div>
+                    <button type="button" class="link-button" data-view-jump="planning">Naar planning</button>
+                </div>
+                <div id="dashboardHolds"></div>
+            </section>
+        </section>
+
+        <section id="view-bookings" class="admin-view hidden">
+            <div class="section-head section-head-inline">
+                <div>
+                    <h2>Boekingen</h2>
+                    <p>Filter op status, betaling of periode en open daarna direct de details.</p>
+                </div>
+            </div>
+            <section class="admin-section">
+                <div class="admin-toolbar-grid">
+                    <label class="field admin-compact-field">
+                        <span>Zoeken</span>
+                        <input id="bookingSearch" type="search" placeholder="Naam, e-mail, referentie of kamer">
+                    </label>
+                    <label class="field admin-compact-field">
+                        <span>Status</span>
+                        <select id="bookingStatusFilter">
+                            <option value="all">Alle statussen</option>
+                            <option value="pending">Nieuw / pending</option>
+                            <option value="confirmed">Bevestigd</option>
+                            <option value="checked-in">Ingecheckt</option>
+                            <option value="checked-out">Uitgecheckt</option>
+                            <option value="cancelled">Geannuleerd</option>
+                        </select>
+                    </label>
+                    <label class="field admin-compact-field">
+                        <span>Betaling</span>
+                        <select id="bookingPaymentFilter">
+                            <option value="all">Alles</option>
+                            <option value="unpaid">Nog niet betaald</option>
+                            <option value="deposit">Alleen voorschot</option>
+                            <option value="paid">Volledig betaald</option>
+                        </select>
+                    </label>
+                    <label class="field admin-compact-field">
+                        <span>Vanaf</span>
+                        <input id="bookingFrom" type="date">
+                    </label>
+                    <label class="field admin-compact-field">
+                        <span>Tot en met</span>
+                        <input id="bookingTo" type="date">
+                    </label>
+                    <label class="field admin-compact-field">
+                        <span>Sortering</span>
+                        <select id="bookingSort">
+                            <option value="checkin-asc">Aankomst oplopend</option>
+                            <option value="checkin-desc">Aankomst aflopend</option>
+                            <option value="created-desc">Recent toegevoegd</option>
+                            <option value="created-asc">Oudst eerst</option>
+                        </select>
+                    </label>
+                    <div class="admin-toolbar-actions">
+                        <button id="bookingResetFilters" type="button" class="secondary-button">Reset filters</button>
+                    </div>
+                </div>
+            </section>
+            <div id="bookingTimeline"></div>
+        </section>
+
+        <section id="view-rooms" class="admin-view hidden">
+            <div class="section-head section-head-inline">
+                <div>
+                    <h2>Kamers</h2>
+                    <p>Beheer de publieke naam, vaste prijs per nacht en of een kamer boekbaar is. De kamernaam wordt op de website letterlijk in alle talen getoond.</p>
+                </div>
+            </div>
+            <div class="admin-grid-split admin-grid-top">
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Nieuwe kamer</h3>
+                            <p>Voeg een nieuwe kamer toe aan het systeem.</p>
+                        </div>
+                    </div>
+                    <form id="roomCreateForm" class="admin-form-stack">
+                        <div class="field-grid">
+                            <label class="field">
+                                <span>Publieke naam</span>
+                                <input id="newRoomName" type="text" placeholder="Kamer 7" required>
+                            </label>
+                            <label class="field">
+                                <span>Vaste prijs per nacht (€)</span>
+                                <input id="newRoomBasePrice" type="number" min="0" step="0.01" placeholder="Bijvoorbeeld 95" required>
+                            </label>
+                        </label>
+                        <div class="button-row-inline admin-align-end">
+                            <button type="submit">Kamer toevoegen</button>
+                        </div>
+                    </form>
+                </section>
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Actieve en inactieve kamers</h3>
+                            <p>Inactieve kamers blijven bewaard maar zijn niet boekbaar.</p>
+                        </div>
+                    </div>
+                    <div id="roomList" class="admin-stack"></div>
+                </section>
+            </div>
+        </section>
+
+        <section id="view-pricing" class="admin-view hidden">
+            <div class="section-head section-head-inline">
+                <div>
+                    <h2>Prijzen</h2>
+                    <p>Bekijk vaste prijzen per kamer en maak uitzonderingen per kamer voor specifieke datums.</p>
+                </div>
+            </div>
+            <div class="admin-grid-split admin-grid-top">
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Vaste prijzen per kamer</h3>
+                            <p>De vaste prijs beheer je bij Kamers. Hieronder zie je per kamer het huidige basistarief.</p>
+                        </div>
+                    </div>
+                    <div id="roomPriceOverview" class="admin-stack"></div>
+                </section>
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Prijsuitzondering per kamer</h3>
+                            <p>Stel per kamer voor een specifieke periode een andere prijs in dan de vaste prijs.</p>
+                        </div>
+                    </div>
+                    <form id="pricingRuleForm" class="admin-form-stack">
+                        <div class="field-grid">
+                            <label class="field">
+                                <span>Kamer</span>
+                                <select id="ruleRoom" required></select>
+                            </label>
+                            <label class="field">
+                                <span>Prijs per nacht (€)</span>
+                                <input id="ruleNightly" type="number" min="0" step="0.01" required>
+                            </label>
+                            <label class="field">
+                                <span>Van</span>
+                                <input id="ruleStart" type="date" required>
+                            </label>
+                            <label class="field">
+                                <span>Tot en met</span>
+                                <input id="ruleEnd" type="date" required>
+                            </label>
+                        </div>
+                        <label class="field">
+                            <span>Label</span>
+                            <input id="ruleLabel" type="text" placeholder="Bijvoorbeeld evenement, feestdag of kortingsweek">
+                        </label>
+                        <div class="button-row-inline admin-align-end">
+                            <button id="saveRuleBtn" type="submit">Prijsregel opslaan</button>
+                            <button id="cancelRuleEditBtn" type="button" class="secondary-button hidden">Annuleer bewerken</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+            <section class="admin-section">
+                <div class="section-head compact-head">
+                    <div>
+                        <h3>Bestaande prijsregels</h3>
+                        <p>Overzicht van alle afwijkende prijzen per kamer en periode.</p>
+                    </div>
+                </div>
+                <div id="pricingRulesList"></div>
+            </section>
+        </section>
+
+        <section id="view-planning" class="admin-view hidden">
+            <div class="section-head section-head-inline">
+                <div>
+                    <h2>Planning</h2>
+                    <p>Blokkeer periodes en bekijk direct welke kamers vrij, vastgelegd of geboekt zijn.</p>
+                </div>
+            </div>
+            <div class="admin-grid-split admin-grid-top">
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3 id="blockFormTitle">Periode blokkeren</h3>
+                            <p>Handig voor privégebruik, onderhoud of externe reserveringen.</p>
+                        </div>
+                    </div>
+                    <form id="blockForm" class="admin-form-stack">
+                        <div class="field-grid">
+                            <label class="field">
+                                <span>Van</span>
+                                <input id="blockStart" type="date" required>
+                            </label>
+                            <label class="field">
+                                <span>Tot en met</span>
+                                <input id="blockEnd" type="date" required>
+                            </label>
+                        </div>
+                        <div class="field">
+                            <span>Kamers blokkeren</span>
+                            <div id="blockRoomSelector" class="field-grid"></div>
+                        </div>
+                        <label class="field">
+                            <span>Reden</span>
+                            <input id="blockReason" type="text" placeholder="Onderhoud, familiebezoek, etc.">
+                        </label>
+                        <div class="button-row-inline admin-align-end">
+                            <button id="blockBtn" type="submit">Periode blokkeren</button>
+                            <button id="cancelBlockEditBtn" type="button" class="secondary-button hidden">Annuleer bewerken</button>
+                        </div>
+                    </form>
+                    <div id="blockList" class="admin-stack"></div>
+                </section>
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Bezettingskalender</h3>
+                            <p>Bekijk bezetting per maand en per kamer, ook voor historische maanden.</p>
+                        </div>
+                    </div>
+                    <div class="planner-jump-bar">
+                        <button id="prevYear" type="button" class="secondary-button">← Jaar</button>
+                        <button id="prevMonth" type="button" class="secondary-button">← Maand</button>
+                        <label class="field">
+                            <span>Kies maand</span>
+                            <input id="plannerMonthPicker" type="month">
+                        </label>
+                        <button id="plannerToday" type="button" class="secondary-button">Huidige maand</button>
+                        <button id="nextMonth" type="button" class="secondary-button">Maand →</button>
+                        <button id="nextYear" type="button" class="secondary-button">Jaar →</button>
+                    </div>
+                    <div class="planner-nav">
+                        <h3 id="plannerMonth"></h3>
+                        <p class="brand-subtitle">Gebruik de maandkiezer of spring snel door de geschiedenis en toekomst.</p>
+                    </div>
+                    <div class="planner-legend">
+                        <span><i class="legend-dot free"></i> Vrij</span>
+                        <span><i class="legend-dot held"></i> Hold</span>
+                        <span><i class="legend-dot booked"></i> Geboekt / geblokkeerd</span>
+                    </div>
+                    <div class="planner-scroll">
+                        <div id="planner"></div>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <section id="view-security" class="admin-view hidden">
+            <div class="section-head section-head-inline">
+                <div>
+                    <h2>Beveiliging</h2>
+                    <p>Wijzig hier het adminwachtwoord en stel de betaalprovider in zonder handmatig in bestanden te werken.</p>
+                </div>
+            </div>
+            <div class="admin-grid-split admin-grid-top">
+                <section class="admin-section admin-section-narrow">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Adminwachtwoord</h3>
+                            <p>Werk hier veilig het wachtwoord van het beheeraccount bij.</p>
+                        </div>
+                    </div>
+                    <form id="passwordForm" class="admin-form-stack">
+                        <label class="field">
+                            <span>Huidig wachtwoord</span>
+                            <input id="currentPassword" type="password" autocomplete="current-password" required>
+                        </label>
+                        <label class="field">
+                            <span>Nieuw wachtwoord</span>
+                            <input id="newPassword" type="password" autocomplete="new-password" required>
+                        </label>
+                        <label class="field">
+                            <span>Herhaal nieuw wachtwoord</span>
+                            <input id="confirmPassword" type="password" autocomplete="new-password" required>
+                        </label>
+                        <div class="button-row-inline admin-align-end">
+                            <button type="submit">Wachtwoord wijzigen</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Betalingen</h3>
+                            <p>Vul hier de Stripe secret key in. Zodra die is opgeslagen kan de checkout- en betaalflow gebruikt worden.</p>
+                        </div>
+                    </div>
+                    <div id="paymentSettingsStatus" class="dashboard-card"></div>
+                    <form id="paymentSettingsForm" class="admin-form-stack">
+                        <label class="field">
+                            <span>Stripe secret key</span>
+                            <input id="stripeSecretKey" type="password" autocomplete="off" placeholder="sk_live_... of sk_test_...">
+                        </label>
+                        <p class="brand-subtitle">Laat dit veld leeg en sla op als je de opgeslagen sleutel wilt verwijderen.</p>
+                        <div class="button-row-inline admin-align-end">
+                            <button type="submit">Stripe sleutel opslaan</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </section>
+    </div>
+
+    <div id="popup" class="popup hidden">
+        <div class="popup-content popup-content-wide">
+            <div class="booking-modal-head">
+                <div>
+                    <p class="eyebrow">Boeking</p>
+                    <h2 id="bookingModalTitle">Boeking details</h2>
+                    <p id="bookingMetaSummary" class="brand-subtitle"></p>
+                </div>
+                <button id="closeBtn" type="button" class="secondary-button">Sluiten</button>
+            </div>
+
+            <div id="priceSummary" class="admin-callout"></div>
+
+            <div class="admin-grid-split admin-grid-top">
+                <div class="admin-form-stack">
+                    <div class="field-grid">
+                        <label class="field">
+                            <span>Naam</span>
+                            <input id="editName" type="text">
+                        </label>
+                        <label class="field">
+                            <span>E-mail</span>
+                            <input id="editEmail" type="email">
+                        </label>
+                    </div>
+                    <div class="field-grid field-grid-address">
+                        <label class="field">
+                            <span>Straat</span>
+                            <input id="editStreet" type="text">
+                        </label>
+                        <label class="field">
+                            <span>Huisnummer</span>
+                            <input id="editHouseNumber" type="text">
+                        </label>
+                    </div>
+                    <div class="field-grid">
+                        <label class="field">
+                            <span>Postcode</span>
+                            <input id="editPostalCode" type="text">
+                        </label>
+                        <label class="field">
+                            <span>Plaats</span>
+                            <input id="editCity" type="text">
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span>Land</span>
+                        <input id="editCountry" type="text">
+                    </label>
+                    <label class="field">
+                        <span>Opmerking</span>
+                        <textarea id="editNote" rows="4" placeholder="Interne notitie of klantopmerking"></textarea>
+                    </label>
+                </div>
+
+                <div class="admin-form-stack">
+                    <div class="field-grid">
+                        <label class="field">
+                            <span>Check-in</span>
+                            <input id="editCheckin" type="date">
+                        </label>
+                        <label class="field">
+                            <span>Check-out</span>
+                            <input id="editCheckout" type="date">
+                        </label>
+                    </div>
+
+                    <label class="field">
+                        <span>Kamers</span>
+                        <div id="editRoomSelector" class="admin-chip-grid"></div>
+                    </label>
+
+                    <div class="field-grid">
+                        <label class="checkbox-field">
+                            <input id="editBabyBed" type="checkbox">
+                            <span><strong>Babybed</strong><small>Extra voorziening voor deze boeking</small></span>
+                        </label>
+                        <label class="checkbox-field">
+                            <input id="editExtraBed" type="checkbox">
+                            <span><strong>Extra bed</strong><small>Reken toeslag mee bij prijs</small></span>
+                        </label>
+                    </div>
+
+                    <label class="field">
+                        <span>Status</span>
+                        <select id="editStatus">
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="checked-in">Checked-in</option>
+                            <option value="checked-out">Checked-out</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </label>
+
+                    <div class="field-grid">
+                        <label class="field">
+                            <span>Verblijf (€)</span>
+                            <input id="editStayPrice" type="number" min="0" step="0.01">
+                        </label>
+                        <label class="field">
+                            <span>Extra's (€)</span>
+                            <input id="editExtras" type="number" min="0" step="0.01">
+                        </label>
+                    </div>
+
+                    <div class="admin-check-grid">
+                        <label><input type="checkbox" id="editMail"> Mail gestuurd</label>
+                        <label><input type="checkbox" id="editDeposit"> Voorschot betaald</label>
+                        <label><input type="checkbox" id="editPaid"> Volledig betaald</label>
+                        <label><input type="checkbox" id="editCheckinStatus"> Ingecheckt</label>
+                        <label><input type="checkbox" id="editCheckoutStatus"> Uitgecheckt</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button id="saveBtn" type="button">Opslaan</button>
+                <button id="deleteBtn" type="button" class="danger-button">Verwijderen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="admin.js?v=20260418-6"></script>
+</body>
+</html>

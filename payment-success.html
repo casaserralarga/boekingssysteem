@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casa Serra Larga | Bevestigd</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css?v=20260418-6">
+</head>
+<body data-page="paymentSuccess">
+<div class="site-shell site-shell-success">
+    <main class="success-card">
+        <p class="eyebrow" data-i18n="paymentSuccess.eyebrow"></p>
+        <h1 data-i18n="paymentSuccess.title"></h1>
+        <p class="hero-text" data-i18n="paymentSuccess.text"></p>
+
+        <div id="successSummary" class="summary-card hidden">
+            <div class="summary-line">
+                <span data-i18n="paymentSuccess.referenceLabel"></span>
+                <strong id="successReference"></strong>
+            </div>
+            <div class="summary-line">
+                <span data-i18n="paymentSuccess.totalLabel"></span>
+                <strong id="successTotal"></strong>
+            </div>
+            <div class="summary-line">
+                <span data-i18n="paymentSuccess.roomsLabel"></span>
+                <strong id="successRooms"></strong>
+            </div>
+        </div>
+
+        <div id="successStatus" class="inline-status hidden"></div>
+
+        <div class="button-row button-row-inline">
+            <a href="/" class="primary-button link-button" data-i18n="paymentSuccess.backHome"></a>
+        </div>
+    </main>
+</div>
+
+<script src="/site.js?v=20260418-6"></script>
+<script src="/payment-success.js?v=20260418-3"></script>
+</body>
+</html>

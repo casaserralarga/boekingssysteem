@@ -1,0 +1,14 @@
+hcloud_token        = "<zet-hier-je-hetzner-api-token>"
+server_name         = "casa-serra-larga"
+location            = "fsn1"
+server_type         = "cpx11"
+ssh_public_key_path = "C:/Users/jij/.ssh/id_ed25519.pub"
+ssh_allowed_cidr    = "203.0.113.10/32"
+
+domain             = "reserveren.jouwdomein.nl"
+letsencrypt_email  = "jij@jouwdomein.nl"
+app_repo_url       = "https://github.com/jouw-account/jouw-repo.git"
+app_repo_branch    = "main"
+session_ttl_days   = 7
+hold_ttl_minutes   = 10
+stripe_secret_key  = "sk_live_..."

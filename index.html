@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casa Serra Larga | Boeken</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/flatpickr.css?v=20260418-3">
+<link rel="stylesheet" href="/styles.css?v=20260418-7">
+</head>
+<body data-page="booking">
+<div class="site-shell site-shell-booking">
+    <header class="site-hero">
+        <div class="brand-lockup">
+            <img src="/logo.png" alt="Casa Serra Larga" class="brand-logo">
+            <div>
+                <p class="eyebrow">Casa Serra Larga</p>
+                <p class="brand-subtitle" data-i18n="common.brandSubtitle"></p>
+            </div>
+        </div>
+
+        <nav class="language-switcher" aria-label="Language">
+            <button type="button" data-language="nl">NL</button>
+            <button type="button" data-language="en">EN</button>
+            <button type="button" data-language="pt">PT</button>
+            <button type="button" data-language="es">ES</button>
+            <button type="button" data-language="fr">FR</button>
+            <button type="button" data-language="de">DE</button>
+        </nav>
+    </header>
+
+    <main class="booking-layout">
+        <section class="booking-panel booking-panel-main">
+            <div class="panel-head">
+                <h2 data-i18n="booking.availabilityTitle"></h2>
+                <p data-i18n="booking.availabilityIntro"></p>
+            </div>
+
+            <form id="bookingForm" class="booking-form" novalidate>
+                <div class="field-group field-group-range">
+                    <label class="field field-wide">
+                        <span data-i18n="booking.stayRangeLabel"></span>
+                        <input id="stayRange" type="text" placeholder="YYYY-MM-DD to YYYY-MM-DD" data-i18n-placeholder="booking.stayRangePlaceholder" autocomplete="off">
+                        <p id="stayRangeError" class="field-error hidden"></p>
+                    </label>
+                    <div class="extras-stack">
+                        <label class="field checkbox-field">
+                            <input id="babyBed" type="checkbox">
+                            <span>
+                                <strong data-i18n="booking.babyBedLabel"></strong>
+                                <small data-i18n="booking.babyBedNote"></small>
+                            </span>
+                        </label>
+                        <label class="field checkbox-field">
+                            <input id="extraBed" type="checkbox">
+                            <span>
+                                <strong data-i18n="booking.extraBedLabel"></strong>
+                                <small data-i18n="booking.extraBedNote"></small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="availabilityStatus" class="inline-status hidden"></div>
+
+                <div class="rooms-panel">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3 data-i18n="booking.roomsTitle"></h3>
+                            <p data-i18n="booking.roomsIntro"></p>
+                        </div>
+                        <div id="roomsMeta" class="meta-chip hidden"></div>
+                    </div>
+                    <div id="roomGrid" class="room-grid"></div>
+                    <p id="roomSelectionError" class="field-error hidden"></p>
+                </div>
+
+                <div class="guest-panel">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3 data-i18n="booking.guestTitle"></h3>
+                            <p data-i18n="booking.guestIntro"></p>
+                        </div>
+                    </div>
+
+                    <div class="field-grid">
+                        <label class="field">
+                            <span data-i18n="booking.nameLabel"></span>
+                            <input id="guestName" type="text" data-i18n-placeholder="booking.namePlaceholder" autocomplete="name">
+                            <p id="guestNameError" class="field-error hidden"></p>
+                        </label>
+
+                        <label class="field">
+                            <span data-i18n="booking.emailLabel"></span>
+                            <input id="guestEmail" type="email" data-i18n-placeholder="booking.emailPlaceholder" autocomplete="email">
+                            <p id="guestEmailError" class="field-error hidden"></p>
+                        </label>
+
+                        <label class="field">
+                            <span data-i18n="booking.phoneLabel"></span>
+                            <input id="guestPhone" type="tel" data-i18n-placeholder="booking.phonePlaceholder" autocomplete="tel">
+                            <p id="guestPhoneError" class="field-error hidden"></p>
+                        </label>
+                    </div>
+
+                    <div class="section-head compact-head compact-head-subsection">
+                        <div>
+                            <h3 data-i18n="booking.addressTitle"></h3>
+                            <p data-i18n="booking.addressIntro"></p>
+                        </div>
+                    </div>
+
+                    <div class="field-grid field-grid-address">
+                        <label class="field">
+                            <span data-i18n="booking.streetLabel"></span>
+                            <input id="guestStreet" type="text" data-i18n-placeholder="booking.streetPlaceholder" autocomplete="address-line1">
+                            <p id="guestStreetError" class="field-error hidden"></p>
+                        </label>
+
+                        <label class="field">
+                            <span data-i18n="booking.houseNumberLabel"></span>
+                            <input id="guestHouseNumber" type="text" data-i18n-placeholder="booking.houseNumberPlaceholder" autocomplete="address-line2">
+                            <p id="guestHouseNumberError" class="field-error hidden"></p>
+                        </label>
+
+                        <label class="field">
+                            <span data-i18n="booking.postalCodeLabel"></span>
+                            <input id="guestPostalCode" type="text" data-i18n-placeholder="booking.postalCodePlaceholder" autocomplete="postal-code">
+                            <p id="guestPostalCodeError" class="field-error hidden"></p>
+                        </label>
+
+                        <label class="field">
+                            <span data-i18n="booking.cityLabel"></span>
+                            <input id="guestCity" type="text" data-i18n-placeholder="booking.cityPlaceholder" autocomplete="address-level2">
+                            <p id="guestCityError" class="field-error hidden"></p>
+                        </label>
+
+                        <label class="field field-wide">
+                            <span data-i18n="booking.countryLabel"></span>
+                            <input id="guestCountry" type="text" data-i18n-placeholder="booking.countryPlaceholder" autocomplete="country-name">
+                            <p id="guestCountryError" class="field-error hidden"></p>
+                        </label>
+                    </div>
+
+                    <label class="field field-wide">
+                        <span data-i18n="booking.noteLabel"></span>
+                        <textarea id="guestNote" rows="4" data-i18n-placeholder="booking.notePlaceholder"></textarea>
+                        <p id="guestNoteError" class="field-error hidden"></p>
+                    </label>
+                </div>
+
+                <div class="cta-row">
+                    <button id="continueButton" type="submit" class="primary-button" data-i18n="booking.continueButton"></button>
+                </div>
+                <div id="formStatus" class="inline-status hidden"></div>
+            </form>
+        </section>
+
+        <aside class="booking-panel booking-panel-side">
+            <div class="panel-head">
+                <h2 data-i18n="booking.summaryTitle"></h2>
+                <p data-i18n="booking.summaryIntro"></p>
+            </div>
+
+            <div id="summaryEmpty" class="summary-empty" data-i18n="booking.summaryEmpty"></div>
+            <div id="summaryCard" class="summary-card hidden">
+                <div class="summary-block">
+                    <span data-i18n="booking.summaryStay"></span>
+                    <strong id="summaryStay"></strong>
+                </div>
+                <div class="summary-block">
+                    <span data-i18n="booking.summaryRooms"></span>
+                    <strong id="summaryRooms"></strong>
+                </div>
+                <div class="summary-block">
+                    <span data-i18n="booking.summaryGuests"></span>
+                    <strong id="summaryGuest"></strong>
+                </div>
+                <div class="summary-line">
+                    <span data-i18n="booking.summaryStayPrice"></span>
+                    <strong id="summaryStayPrice"></strong>
+                </div>
+                <div class="summary-line">
+                    <span data-i18n="booking.summaryExtras"></span>
+                    <strong id="summaryExtras"></strong>
+                </div>
+                <div class="summary-total">
+                    <span data-i18n="booking.summaryTotal"></span>
+                    <strong id="summaryTotal"></strong>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <section class="calendar-panel">
+        <div class="panel-head">
+            <p class="eyebrow" data-i18n="booking.calendarEyebrow"></p>
+            <h2 data-i18n="booking.calendarTitle"></h2>
+            <p data-i18n="booking.calendarIntro"></p>
+        </div>
+
+        <div class="calendar-toolbar">
+            <div class="calendar-nav-group">
+                <button id="calendarPrev" type="button" class="secondary-button" aria-label="Previous month">&#8592;</button>
+                <strong id="calendarMonthLabel"></strong>
+                <button id="calendarNext" type="button" class="secondary-button" aria-label="Next month">&#8594;</button>
+            </div>
+            <div class="calendar-jump-controls">
+                <label class="field field-inline field-inline-select">
+                    <span class="sr-only" data-i18n="booking.calendarMonthSelectLabel"></span>
+                    <select id="calendarMonthSelect"></select>
+                </label>
+                <label class="field field-inline field-inline-select">
+                    <span class="sr-only" data-i18n="booking.calendarYearSelectLabel"></span>
+                    <select id="calendarYearSelect"></select>
+                </label>
+                <button id="calendarToday" type="button" class="ghost-link" data-i18n="booking.calendarTodayButton"></button>
+            </div>
+        </div>
+
+        <div class="calendar-legend">
+            <span><i class="legend-dot dot-available"></i><span data-i18n="booking.calendarLegendAvailable"></span></span>
+            <span><i class="legend-dot dot-held"></i><span data-i18n="booking.calendarLegendHeld"></span></span>
+            <span><i class="legend-dot dot-booked"></i><span data-i18n="booking.calendarLegendBooked"></span></span>
+        </div>
+
+        <div id="calendarGrid" class="calendar-grid"></div>
+        <div id="calendarStatus" class="inline-status hidden"></div>
+    </section>
+</div>
+
+<script src="/site.js?v=20260418-6"></script>
+<script src="/flatpickr.js?v=20260418-3"></script>
+<script src="/script.js?v=20260418-7"></script>
+</body>
+</html>

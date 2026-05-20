@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casa Serra Larga | Betalen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css?v=20260418-6">
+</head>
+<body data-page="payment">
+<div class="site-shell site-shell-payment">
+    <header class="site-hero compact-hero">
+        <div class="brand-lockup">
+            <img src="/logo.png" alt="Casa Serra Larga" class="brand-logo">
+            <div>
+                <p class="eyebrow">Casa Serra Larga</p>
+                <p class="brand-subtitle" data-i18n="common.brandSubtitle"></p>
+            </div>
+        </div>
+        <nav class="language-switcher" aria-label="Language">
+            <button type="button" data-language="nl">NL</button>
+            <button type="button" data-language="en">EN</button>
+            <button type="button" data-language="pt">PT</button>
+            <button type="button" data-language="es">ES</button>
+            <button type="button" data-language="fr">FR</button>
+            <button type="button" data-language="de">DE</button>
+        </nav>
+        <div class="hero-copy narrow-copy">
+            <p class="eyebrow" data-i18n="payment.eyebrow"></p>
+            <h1 data-i18n="payment.title"></h1>
+            <p class="hero-text" data-i18n="payment.text"></p>
+        </div>
+    </header>
+
+    <main class="payment-layout">
+        <section class="booking-panel booking-panel-main">
+            <div class="section-head compact-head">
+                <div>
+                    <h2 data-i18n="payment.summaryTitle"></h2>
+                    <p data-i18n="payment.summaryIntro"></p>
+                </div>
+                <div id="holdCountdown" class="countdown-pill hidden"></div>
+            </div>
+
+            <div id="paymentSummary" class="payment-summary hidden">
+                <div class="summary-block">
+                    <span data-i18n="payment.roomsLabel"></span>
+                    <strong id="paymentRooms"></strong>
+                </div>
+                <div class="summary-block">
+                    <span data-i18n="payment.stayLabel"></span>
+                    <strong id="paymentStay"></strong>
+                </div>
+                <div class="summary-line">
+                    <span data-i18n="payment.guestLabel"></span>
+                    <strong id="paymentGuest"></strong>
+                </div>
+                <div class="summary-line">
+                    <span data-i18n="payment.totalLabel"></span>
+                    <strong id="paymentTotal"></strong>
+                </div>
+            </div>
+
+            <div class="button-row button-row-inline">
+    <a href="/" class="secondary-button link-button" data-i18n="payment.backButton"></a>
+
+    <button id="payNowButton" type="button" class="primary-button" data-i18n="payment.payNow"></button>
+
+    <!-- 👇 NIEUWE KNOP -->
+    <button id="bookWithoutPayment" type="button" class="secondary-button">
+        Boek zonder betaling
+    </button>
+</div>
+            <div id="paymentStatus" class="inline-status hidden"></div>
+        </section>
+    </main>
+</div>
+
+<script src="/site.js?v=20260418-6"></script>
+<script src="/payment.js?v=20260418-3"></script>
+</body>
+</html>

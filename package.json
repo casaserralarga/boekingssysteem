@@ -1,0 +1,33 @@
+{
+  "name": "casa-serra-larga-reservations",
+  "version": "1.0.0",
+  "description": "Secure reservation system for Casa Serra Larga",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "setup:admin": "node src/scripts/create-admin.js",
+    "set:admin-login": "node src/scripts/set-admin-login.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.7.0",
+    "@prisma/client": "^7.7.0",
+    "better-sqlite3": "^12.9.0",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "flatpickr": "^4.6.13",
+    "helmet": "^8.1.0",
+    "pino-http": "^11.0.0",
+    "prisma": "^7.7.0",
+    "stripe": "^22.0.2",
+    "zod": "^4.3.6"
+  }
+}
