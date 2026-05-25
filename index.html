@@ -62,22 +62,18 @@
                             <p id="babyCountError" class="field-error hidden"></p>
                         </label>
                         <div class="field">
-                            <label class="checkbox-field">
-                                <input id="babyBed" type="checkbox">
-                                <span>
-                                    <strong data-i18n="booking.babyBedLabel"></strong>
-                                    <small data-i18n="booking.babyBedNote"></small>
-                                </span>
+                            <label class="field">
+                                <span data-i18n="booking.babyBedLabel"></span>
+                                <input id="babyBed" type="number" min="0" max="20" value="0" inputmode="numeric">
+                                <small data-i18n="booking.babyBedNote"></small>
                             </label>
                             <p id="babyBedError" class="field-error hidden"></p>
                         </div>
                         <div class="field">
-                            <label class="checkbox-field">
-                                <input id="extraBed" type="checkbox">
-                                <span>
-                                    <strong data-i18n="booking.extraBedLabel"></strong>
-                                    <small data-i18n="booking.extraBedNote"></small>
-                                </span>
+                            <label class="field">
+                                <span data-i18n="booking.extraBedLabel"></span>
+                                <input id="extraBed" type="number" min="0" max="20" value="0" inputmode="numeric">
+                                <small data-i18n="booking.extraBedNote"></small>
                             </label>
                             <p id="extraBedError" class="field-error hidden"></p>
                         </div>

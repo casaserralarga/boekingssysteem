@@ -6,6 +6,10 @@
             stripeConfigured: false,
             stripeSecretKeyMasked: ''
         },
+        bedSettings: {
+            extraBedCapacity: 1,
+            babyBedCapacity: 1
+        },
         rooms: [],
         bookings: [],
         pricingRules: [],
@@ -79,6 +83,10 @@
         currentPassword: document.getElementById('currentPassword'),
         newPassword: document.getElementById('newPassword'),
         confirmPassword: document.getElementById('confirmPassword'),
+        bedSettingsStatus: document.getElementById('bedSettingsStatus'),
+        bedSettingsForm: document.getElementById('bedSettingsForm'),
+        extraBedCapacity: document.getElementById('extraBedCapacity'),
+        babyBedCapacity: document.getElementById('babyBedCapacity'),
         paymentSettingsStatus: document.getElementById('paymentSettingsStatus'),
         paymentSettingsForm: document.getElementById('paymentSettingsForm'),
         stripeSecretKey: document.getElementById('stripeSecretKey'),
@@ -309,6 +317,11 @@
             void changePassword();
         });
 
+        elements.bedSettingsForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            void saveBedSettings();
+        });
+
         elements.paymentSettingsForm.addEventListener('submit', (event) => {
             event.preventDefault();
             void savePaymentSettings();
@@ -408,6 +421,10 @@
             stripeConfigured: false,
             stripeSecretKeyMasked: ''
         };
+        state.bedSettings = data.bedSettings || {
+            extraBedCapacity: 1,
+            babyBedCapacity: 1
+        };
         state.rooms = data.rooms;
         state.bookings = data.bookings;
         state.blocks = data.blocks;
@@ -434,8 +451,28 @@
         renderPricingRules();
         renderBlockRoomSelector();
         renderBlocks();
+        renderBedSettings();
         renderPaymentSettings();
         setActiveView(state.activeView);
+    }
+
+    function renderBedSettings() {
+        const { extraBedCapacity, babyBedCapacity } = state.bedSettings;
+        elements.extraBedCapacity.value = String(extraBedCapacity || 0);
+        elements.babyBedCapacity.value = String(babyBedCapacity || 0);
+        elements.bedSettingsStatus.innerHTML = `
+            <div class="booking-actions">
+                <div>
+                    <h3>Beschikbare bedden</h3>
+                    <p>Deze aantallen worden gecontroleerd bij overlappende boekingen en actieve holds.</p>
+                </div>
+                <span class="admin-badge badge-success">Actief</span>
+            </div>
+            <div class="booking-meta">
+                <div><strong>Kinderbedden</strong><br>${escapeHtml(String(extraBedCapacity || 0))}</div>
+                <div><strong>Babybedden</strong><br>${escapeHtml(String(babyBedCapacity || 0))}</div>
+            </div>
+        `;
     }
 
     function renderPaymentSettings() {
@@ -802,6 +839,13 @@
             grid.appendChild(row);
         });
 
+        (data.beds || []).forEach((bed) => {
+            const row = document.createElement('div');
+            row.className = 'planner-row planner-row-bed';
+            row.innerHTML = `<div class="planner-room">${escapeHtml(bed.name)}</div>${bed.days.map((day) => `<div class="planner-cell ${day.status === 'available' ? 'free' : day.status}" title="${escapeHtml(`${bed.name} ${day.date} · ${day.detail}`)}">${escapeHtml(String(day.available))}</div>`).join('')}`;
+            grid.appendChild(row);
+        });
+
         elements.planner.appendChild(grid);
     }
 
@@ -1108,6 +1152,30 @@
         showAdminStatus(state.paymentSettings.stripeConfigured ? 'Stripe sleutel opgeslagen.' : 'Stripe sleutel verwijderd.');
     }
 
+    async function saveBedSettings() {
+        const payload = {
+            extraBedCapacity: readAdminCount(elements.extraBedCapacity, 0),
+            babyBedCapacity: readAdminCount(elements.babyBedCapacity, 0)
+        };
+
+        const response = await fetch('/api/admin/bed-settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            showAdminStatus(data.message || 'Bedinstellingen konden niet worden opgeslagen.', true);
+            return;
+        }
+
+        state.bedSettings = data.bedSettings;
+        renderBedSettings();
+        showAdminStatus('Bedinstellingen opgeslagen.');
+        await loadPlanner();
+    }
+
     function openBookingPopup(bookingId) {
         const booking = state.bookings.find((item) => item.id === bookingId);
         if (!booking) {
@@ -1131,8 +1199,8 @@
         elements.editAdultCount.value = String(booking.adultCount || 2);
         elements.editChildCount.value = String(booking.childCount || 0);
         elements.editBabyCount.value = String(booking.babyCount || 0);
-        elements.editBabyBed.checked = Boolean(booking.babyBed);
-        elements.editExtraBed.checked = Boolean(booking.extraBed);
+        elements.editBabyBed.value = String(booking.babyBed || 0);
+        elements.editExtraBed.value = String(booking.extraBed || 0);
         elements.editStatus.value = booking.status;
         elements.editStayPrice.value = String((booking.stayPriceCents || 0) / 100);
         elements.editExtras.value = String((booking.extrasPriceCents || 0) / 100);
@@ -1236,8 +1304,8 @@
             adultCount,
             childCount: readAdminCount(elements.editChildCount, 0),
             babyCount: readAdminCount(elements.editBabyCount, 0),
-            babyBed: elements.editBabyBed.checked ? 1 : 0,
-            extraBed: elements.editExtraBed.checked ? 1 : 0,
+            babyBed: readAdminCount(elements.editBabyBed, 0),
+            extraBed: readAdminCount(elements.editExtraBed, 0),
             stayPriceCents,
             extrasPriceCents,
             totalPriceCents,

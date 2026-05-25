@@ -692,6 +692,12 @@ p {
     font-weight: 700;
 }
 
+.planner-row-bed .planner-room,
+.planner-row-bed .planner-cell {
+    font-weight: 700;
+    border-color: rgba(165, 76, 46, 0.16);
+}
+
 .popup {
     position: fixed;
     inset: 0;
@@ -859,7 +865,7 @@ p {
             <button type="button" data-view="rooms">Kamers</button>
             <button type="button" data-view="pricing">Prijzen</button>
             <button type="button" data-view="planning">Planning</button>
-            <button type="button" data-view="security">Beveiliging</button>
+            <button type="button" data-view="security">Instellingen</button>
         </nav>
 
         <section id="view-dashboard" class="admin-view">
@@ -1147,11 +1153,36 @@ p {
         <section id="view-security" class="admin-view hidden">
             <div class="section-head section-head-inline">
                 <div>
-                    <h2>Beveiliging</h2>
-                    <p>Wijzig hier het adminwachtwoord en stel de betaalprovider in zonder handmatig in bestanden te werken.</p>
+                    <h2>Instellingen</h2>
+                    <p>Wijzig hier bedcapaciteit, adminwachtwoord en betaalprovider zonder handmatig in bestanden te werken.</p>
                 </div>
             </div>
             <div class="admin-grid-split admin-grid-top">
+                <section class="admin-section">
+                    <div class="section-head compact-head">
+                        <div>
+                            <h3>Bedden</h3>
+                            <p>Stel in hoeveel kinderbedden en babybedden beschikbaar zijn voor dezelfde periode.</p>
+                        </div>
+                    </div>
+                    <div id="bedSettingsStatus" class="dashboard-card"></div>
+                    <form id="bedSettingsForm" class="admin-form-stack">
+                        <div class="field-grid">
+                            <label class="field">
+                                <span>Kinderbedden</span>
+                                <input id="extraBedCapacity" type="number" min="0" max="50" inputmode="numeric" required>
+                            </label>
+                            <label class="field">
+                                <span>Babybedden</span>
+                                <input id="babyBedCapacity" type="number" min="0" max="50" inputmode="numeric" required>
+                            </label>
+                        </div>
+                        <div class="button-row-inline admin-align-end">
+                            <button type="submit">Bedden opslaan</button>
+                        </div>
+                    </form>
+                </section>
+
                 <section class="admin-section admin-section-narrow">
                     <div class="section-head compact-head">
                         <div>
@@ -1288,13 +1319,13 @@ p {
                             <span>Aantal baby's</span>
                             <input id="editBabyCount" type="number" min="0" max="20">
                         </label>
-                        <label class="checkbox-field">
-                            <input id="editBabyBed" type="checkbox">
-                            <span><strong>Babybed</strong><small>Gratis voorziening</small></span>
+                        <label class="field">
+                            <span>Babybedden</span>
+                            <input id="editBabyBed" type="number" min="0" max="20" inputmode="numeric">
                         </label>
-                        <label class="checkbox-field">
-                            <input id="editExtraBed" type="checkbox">
-                            <span><strong>Extra kinderbed</strong><small>Reken toeslag mee bij prijs</small></span>
+                        <label class="field">
+                            <span>Extra kinderbedden</span>
+                            <input id="editExtraBed" type="number" min="0" max="20" inputmode="numeric">
                         </label>
                     </div>
 

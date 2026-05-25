@@ -171,6 +171,11 @@ const paymentSettingsSchema = z.object({
     stripeSecretKey: z.string().trim().max(255).optional().default('')
 });
 
+const bedSettingsSchema = z.object({
+    extraBedCapacity: z.coerce.number().int().min(0).max(50),
+    babyBedCapacity: z.coerce.number().int().min(0).max(50)
+});
+
 function createApp() {
     const app = express();
 
@@ -260,11 +265,13 @@ function createApp() {
     app.get('/api/public/settings', async (req, res) => {
         const pricing = await db.getPricingSettings();
         const settings = await db.getSettings();
+        const bedSettings = await db.getBedSettings();
         const rooms = await db.listRooms();
 
         res.json({
             propertyName: settings.property_name,
             totalRooms: pricing.totalRooms,
+            bedSettings,
             stripeConfigured: await isStripeConfigured(),
             holdMinutes: config.holdTtlMinutes,
             pricing: {
@@ -293,6 +300,8 @@ function createApp() {
             const pricingRules = await db.listPricingRules();
             const occupancy = await db.listRoomOccupancy(monthStartIso, monthEndIso);
             const blockedOccupancy = await db.listBlockedRoomOccupancy(monthStartIso, monthEndIso);
+            const bedSettings = await db.getBedSettings();
+            const bedOccupancy = await db.listBedOccupancy(monthStartIso, monthEndIso);
             const activeHolds = await db.listActiveBookingHolds();
 
             const holdOccupancy = activeHolds.flatMap((hold) => hold.selectedRoomIds.map((roomId) => ({
@@ -310,6 +319,7 @@ function createApp() {
             res.json({
                 month: formatIsoDate(monthStart).slice(0, 7),
                 days,
+                beds: buildBedCalendar(days, bedSettings, bedOccupancy),
                 rooms: rooms.map((room) => ({
                     ...room,
                     days: days.map((date) => {
@@ -371,6 +381,7 @@ function createApp() {
             const pricingRules = await db.listPricingRules();
             const rooms = await db.listRooms();
             await assertRoomsAvailable(data.selectedRoomIds, data.checkin, data.checkout);
+            await assertBedsAvailable(data, data.checkin, data.checkout);
 
             const quote = calculateMultiRoomQuote({
                 selectedRoomIds: data.selectedRoomIds,
@@ -404,6 +415,7 @@ function createApp() {
             const pricingRules = await db.listPricingRules();
             const rooms = await db.listRooms();
             await assertRoomsAvailable(data.selectedRoomIds, data.checkin, data.checkout);
+            await assertBedsAvailable(data, data.checkin, data.checkout);
 
             const quote = calculateMultiRoomQuote({
                 selectedRoomIds: data.selectedRoomIds,
@@ -442,6 +454,7 @@ function createApp() {
             const pricingRules = await db.listPricingRules();
             const rooms = await db.listRooms();
             await assertRoomsAvailable(data.selectedRoomIds, data.checkin, data.checkout);
+            await assertBedsAvailable(data, data.checkin, data.checkout);
 
             const quote = calculateMultiRoomQuote({
                 selectedRoomIds: data.selectedRoomIds,
@@ -512,25 +525,26 @@ function createApp() {
             const hold = await db.getBookingHoldByToken(req.params.token);
 
             if (!hold) {
-            return res.status(404).json({ message: 'Hold niet gevonden of verlopen.' });
-        }
+                return res.status(404).json({ message: 'Hold niet gevonden of verlopen.' });
+            }
 
-        // 👇 BELANGRIJK: zelfde functie als Stripe gebruikt
-       const booking = await db.confirmBookingFromHold(req.params.token, {
-    paid: false,
-    depositPaid: false
-});
-        if (!booking) {
-            return res.status(409).json({ message: 'Kon booking niet bevestigen.' });
-        }
+            await assertBedsAvailable(hold, hold.checkin, hold.checkout, null, req.params.token);
 
-        return res.json({ booking });
-    } catch (error) {
-        next(error);
-    }
-});
+            const booking = await db.confirmBookingFromHold(req.params.token, {
+                paid: false,
+                depositPaid: false
+            });
+            if (!booking) {
+                return res.status(409).json({ message: 'Kon booking niet bevestigen.' });
+            }
+
+            return res.json({ booking });
+        } catch (error) {
+            next(error);
+        }
+    });
     
-app.post('/api/public/complete-payment', async (req, res, next) => {
+    app.post('/api/public/complete-payment', async (req, res, next) => {
         try {
             const data = completePaymentSchema.parse(req.body);
             const session = await retrieveStripeCheckoutSession(data.sessionId);
@@ -547,6 +561,10 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
             const hold = await db.getBookingHoldByToken(holdToken);
             if (hold && session.amount_total != null && Number(session.amount_total) !== Number(hold.totalPriceCents)) {
                 return res.status(409).json({ message: 'Het betaalde bedrag komt niet overeen met de reservering.' });
+            }
+
+            if (hold) {
+                await assertBedsAvailable(hold, hold.checkin, hold.checkout, null, holdToken);
             }
 
             const booking = await db.confirmBookingFromHold(holdToken);
@@ -616,6 +634,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
         res.json({
             user: req.adminUser,
             pricing: await db.getPricingSettings(),
+            bedSettings: await db.getBedSettings(),
             rooms: await db.listAllRooms(),
             pricingRules: await db.listPricingRules(),
             bookings: await db.listBookings(),
@@ -649,6 +668,20 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
                     stripeSecretKeyMasked: maskSecret(paymentSettings.stripeSecretKey)
                 }
             });
+        } catch (error) {
+            next(error);
+        }
+    });
+
+    app.get('/api/admin/bed-settings', requireAdmin, async (req, res) => {
+        res.json({ bedSettings: await db.getBedSettings() });
+    });
+
+    app.put('/api/admin/bed-settings', requireAdmin, requireSameOrigin, async (req, res, next) => {
+        try {
+            const data = bedSettingsSchema.parse(req.body);
+            const bedSettings = await db.updateBedSettings(data);
+            res.json({ bedSettings });
         } catch (error) {
             next(error);
         }
@@ -810,6 +843,7 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
             const selectedRoomIds = data.selectedRoomIds || (data.assignedRoom ? [Number(data.assignedRoom)] : existing.selectedRoomIds);
             await assertRoomsAvailable(selectedRoomIds, data.checkin, data.checkout, bookingId);
             validateOccupancyForRooms(data, selectedRoomIds);
+            await assertBedsAvailable(data, data.checkin, data.checkout, bookingId);
 
             const booking = await db.updateBooking(bookingId, {
                 ...data,
@@ -850,6 +884,53 @@ app.post('/api/public/complete-payment', async (req, res, next) => {
     });
 
     return app;
+}
+
+function buildBedCalendar(days, bedSettings, bedOccupancy) {
+    return [
+        buildBedCalendarRow({
+            name: 'Kinderbedden',
+            field: 'extraBed',
+            capacity: bedSettings.extraBedCapacity,
+            days,
+            bedOccupancy
+        }),
+        buildBedCalendarRow({
+            name: 'Babybedden',
+            field: 'babyBed',
+            capacity: bedSettings.babyBedCapacity,
+            days,
+            bedOccupancy
+        })
+    ];
+}
+
+function buildBedCalendarRow({ name, field, capacity, days, bedOccupancy }) {
+    const totalCapacity = Number(capacity || 0);
+    return {
+        name,
+        capacity: totalCapacity,
+        days: days.map((date) => {
+            const nextDate = formatIsoDate(addUtcDays(parseIsoDate(date), 1));
+            const overlapping = bedOccupancy.filter((entry) => entry.checkin < nextDate && entry.checkout > date);
+            const used = overlapping.reduce((sum, entry) => sum + Number(entry[field] || 0), 0);
+            const held = overlapping
+                .filter((entry) => entry.type === 'hold')
+                .reduce((sum, entry) => sum + Number(entry[field] || 0), 0);
+            const available = Math.max(totalCapacity - used, 0);
+            const status = available <= 0 ? 'booked' : used > 0 || held > 0 ? 'held' : 'available';
+
+            return {
+                date,
+                status,
+                used,
+                held,
+                available,
+                capacity: totalCapacity,
+                detail: `${used} van ${totalCapacity} gebruikt · ${available} beschikbaar`
+            };
+        })
+    };
 }
 
 async function buildRoomOptions(checkin, checkout, extraBed, ignoreHoldToken = null) {
@@ -949,6 +1030,38 @@ async function assertRoomsAvailable(selectedRoomIds, checkin, checkout, ignoreBo
 
     if (!roomIds.every((roomId) => availableRoomIds.has(roomId))) {
         const error = new Error('Een of meer geselecteerde kamers zijn niet beschikbaar in deze periode.');
+        error.statusCode = 409;
+        throw error;
+    }
+}
+
+async function assertBedsAvailable(data, checkin, checkout, ignoreBookingId = null, ignoreHoldToken = null) {
+    if (['cancelled', 'checked-out'].includes(data.status)) {
+        return;
+    }
+
+    const requestedExtraBeds = Number(data.extraBed || 0);
+    const requestedBabyBeds = Number(data.babyBed || 0);
+
+    if (!requestedExtraBeds && !requestedBabyBeds) {
+        return;
+    }
+
+    const [bedSettings, usage] = await Promise.all([
+        db.getBedSettings(),
+        db.getOverlappingBedUsage(checkin, checkout, { ignoreBookingId, ignoreHoldToken })
+    ]);
+    const availableExtraBeds = Math.max(Number(bedSettings.extraBedCapacity || 0) - usage.extraBed, 0);
+    const availableBabyBeds = Math.max(Number(bedSettings.babyBedCapacity || 0) - usage.babyBed, 0);
+
+    if (requestedExtraBeds > availableExtraBeds) {
+        const error = new Error(`Er zijn in deze periode nog ${availableExtraBeds} kinderbedden beschikbaar.`);
+        error.statusCode = 409;
+        throw error;
+    }
+
+    if (requestedBabyBeds > availableBabyBeds) {
+        const error = new Error(`Er zijn in deze periode nog ${availableBabyBeds} babybedden beschikbaar.`);
         error.statusCode = 409;
         throw error;
     }

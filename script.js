@@ -227,6 +227,7 @@
             }
 
             state.settings = data;
+            applyBedSettingsToInputs();
             if (state.checkin && state.checkout) {
                 await Promise.all([loadCalendar(), refreshAvailability()]);
             } else {
@@ -760,8 +761,14 @@
         }
         state.childCount = readCount(elements.childCount, 0);
         state.babyCount = readCount(elements.babyCount, 0);
-        state.babyBed = elements.babyBed.checked ? 1 : 0;
-        state.extraBed = elements.extraBed.checked ? 1 : 0;
+        state.babyBed = readCount(elements.babyBed, 0, 0, getInputMax(elements.babyBed));
+        state.extraBed = readCount(elements.extraBed, 0, 0, getInputMax(elements.extraBed));
+        if (elements.babyBed.value !== String(state.babyBed)) {
+            elements.babyBed.value = String(state.babyBed);
+        }
+        if (elements.extraBed.value !== String(state.extraBed)) {
+            elements.extraBed.value = String(state.extraBed);
+        }
     }
 
     function buildBookingPayload() {
@@ -824,8 +831,8 @@
         elements.adultCount.value = String(readDraftCount(draft.adultCount, 2));
         elements.childCount.value = String(readDraftCount(draft.childCount, 0));
         elements.babyCount.value = String(readDraftCount(draft.babyCount, 0));
-        elements.babyBed.checked = Number(draft.babyBed || 0) > 0 || draft.babyBed === true;
-        elements.extraBed.checked = Number(draft.extraBed || 0) > 0 || draft.extraBed === true;
+        elements.babyBed.value = String(readDraftCount(draft.babyBed === true ? 1 : draft.babyBed, 0));
+        elements.extraBed.value = String(readDraftCount(draft.extraBed === true ? 1 : draft.extraBed, 0));
 
         if (isIsoDate(draft.checkin) && isIsoDate(draft.checkout)) {
             state.checkin = draft.checkin;
@@ -853,9 +860,25 @@
         return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
     }
 
-    function readCount(input, fallback, minimum = 0) {
+    function readCount(input, fallback, minimum = 0, maximum = null) {
         const value = Number.parseInt(input.value, 10);
-        return Number.isFinite(value) ? Math.max(minimum, value) : fallback;
+        const resolved = Number.isFinite(value) ? Math.max(minimum, value) : fallback;
+        return maximum == null ? resolved : Math.min(maximum, resolved);
+    }
+
+    function getInputMax(input, fallback = 20) {
+        const value = Number.parseInt(input.max, 10);
+        return Number.isFinite(value) ? value : fallback;
+    }
+
+    function applyBedSettingsToInputs() {
+        const bedSettings = state.settings?.bedSettings || {};
+        const babyBedCapacity = Math.max(0, Number(bedSettings.babyBedCapacity ?? 1));
+        const extraBedCapacity = Math.max(0, Number(bedSettings.extraBedCapacity ?? 1));
+
+        elements.babyBed.max = String(babyBedCapacity);
+        elements.extraBed.max = String(extraBedCapacity);
+        syncGuestCounts();
     }
 
     function syncNifVisibility() {
@@ -925,19 +948,20 @@
     }
 
     function extractError(data, fallbackKey) {
-        if (data && typeof data.message === 'string') {
+        if (data && typeof data.message === 'string' && data.message.trim()) {
             return data.message;
         }
+
         return i18n.t(fallbackKey);
     }
 
     function toIsoDate(value) {
-    const year = value.getFullYear();
-    const month = String(value.getMonth() + 1).padStart(2, '0');
-    const day = String(value.getDate()).padStart(2, '0');
+        const year = value.getFullYear();
+        const month = String(value.getMonth() + 1).padStart(2, '0');
+        const day = String(value.getDate()).padStart(2, '0');
 
-    return `${year}-${month}-${day}`;
-}
+        return `${year}-${month}-${day}`;
+    }
 
     function formatFriendlyDate(value) {
     const [year, month, day] = value.split('-').map(Number);
@@ -947,7 +971,7 @@
         month: 'short',
         year: 'numeric'
     }).format(new Date(year, month - 1, day));
-}
+    }
 
     function formatMonthKey(date) {
         return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;

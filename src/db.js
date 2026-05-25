@@ -127,6 +127,8 @@ async function ensureDefaults() {
         price_mid_cents: 10000,
         price_high_cents: 12000,
         total_rooms: 6,
+        extra_bed_capacity: 1,
+        baby_bed_capacity: 1,
         invoice_number: 1000,
         property_name: 'Casa Serra Larga'
     };
@@ -331,6 +333,25 @@ async function getPaymentSettings() {
     return {
         stripeSecretKey: String(settings.stripe_secret_key || '')
     };
+}
+
+function settingInt(settings, key, fallback) {
+    const value = Number.parseInt(settings[key], 10);
+    return Number.isFinite(value) ? Math.max(0, value) : fallback;
+}
+
+async function getBedSettings() {
+    const settings = await getSettings();
+    return {
+        extraBedCapacity: settingInt(settings, 'extra_bed_capacity', 1),
+        babyBedCapacity: settingInt(settings, 'baby_bed_capacity', 1)
+    };
+}
+
+async function updateBedSettings({ extraBedCapacity, babyBedCapacity }) {
+    await upsertSetting('extra_bed_capacity', Math.max(0, Number(extraBedCapacity || 0)));
+    await upsertSetting('baby_bed_capacity', Math.max(0, Number(babyBedCapacity || 0)));
+    return getBedSettings();
 }
 
 async function updatePaymentSettings({ stripeSecretKey = '' }) {
@@ -785,6 +806,94 @@ async function listBlockedRoomOccupancy(checkin, checkout) {
         reason: row.blockedPeriod.reason,
         status: 'blocked'
     }));
+}
+
+async function listBedOccupancy(checkin, checkout) {
+    await ensureInitialized();
+    await deleteExpiredBookingHolds();
+
+    const bookingRows = await prisma.booking.findMany({
+        where: {
+            status: { in: occupancyBookingStatuses },
+            checkin: { lt: checkout },
+            checkout: { gt: checkin }
+        },
+        select: {
+            id: true,
+            checkin: true,
+            checkout: true,
+            babyBed: true,
+            extraBed: true,
+            status: true
+        }
+    });
+    const holdRows = await prisma.bookingHold.findMany({
+        where: {
+            status: { in: ['held', 'payment_pending'] },
+            expiresAt: { gt: nowIso() },
+            checkin: { lt: checkout },
+            checkout: { gt: checkin }
+        },
+        select: {
+            holdToken: true,
+            checkin: true,
+            checkout: true,
+            babyBed: true,
+            extraBed: true,
+            status: true
+        }
+    });
+
+    return [
+        ...bookingRows.map((row) => ({
+            type: 'booking',
+            id: row.id,
+            checkin: row.checkin,
+            checkout: row.checkout,
+            babyBed: Number(row.babyBed || 0),
+            extraBed: Number(row.extraBed || 0),
+            status: row.status
+        })),
+        ...holdRows.map((row) => ({
+            type: 'hold',
+            id: row.holdToken,
+            checkin: row.checkin,
+            checkout: row.checkout,
+            babyBed: Number(row.babyBed || 0),
+            extraBed: Number(row.extraBed || 0),
+            status: row.status
+        }))
+    ];
+}
+
+async function getOverlappingBedUsage(checkin, checkout, { ignoreBookingId = null, ignoreHoldToken = null } = {}) {
+    await ensureInitialized();
+    await deleteExpiredBookingHolds();
+
+    const bookingRows = await prisma.booking.findMany({
+        where: {
+            status: { in: activeBookingStatuses },
+            checkin: { lt: checkout },
+            checkout: { gt: checkin },
+            ...(ignoreBookingId ? { id: { not: Number(ignoreBookingId) } } : {})
+        },
+        select: { babyBed: true, extraBed: true }
+    });
+    const holdRows = await prisma.bookingHold.findMany({
+        where: {
+            status: { in: ['held', 'payment_pending'] },
+            expiresAt: { gt: nowIso() },
+            checkin: { lt: checkout },
+            checkout: { gt: checkin },
+            ...(ignoreHoldToken ? { holdToken: { not: ignoreHoldToken } } : {})
+        },
+        select: { babyBed: true, extraBed: true }
+    });
+
+    return [...bookingRows, ...holdRows].reduce((usage, row) => ({
+        babyBed: usage.babyBed + Number(row.babyBed || 0),
+        extraBed: usage.extraBed + Number(row.extraBed || 0)
+    }), { babyBed: 0, extraBed: 0 });
 }
 
 async function getOverlappingBookedRooms(checkin, checkout, ignoreBookingId = null) {
@@ -1442,6 +1551,7 @@ module.exports = {
     getSettings,
     getPricingSettings,
     getPaymentSettings,
+    getBedSettings,
     listRooms,
     listAllRooms,
     getRoomById,
@@ -1459,7 +1569,9 @@ module.exports = {
     listRoomsWithAvailability,
     listRoomOccupancy,
     listBlockedRoomOccupancy,
+    listBedOccupancy,
     listActiveBookingHolds,
+    getOverlappingBedUsage,
     isRoomAssignmentAvailable,
     createBooking,
     createBookingHold,
@@ -1474,6 +1586,7 @@ module.exports = {
     deleteBlockedPeriod,
     updatePricing,
     updatePaymentSettings,
+    updateBedSettings,
     createAdminUser,
     findAdminUserByUsername,
     findAdminUserByEmail,
