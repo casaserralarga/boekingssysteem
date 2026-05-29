@@ -94,3 +94,37 @@ test('calculateMultiRoomQuote rekent extra kinderbedden per stuk per nacht', () 
     assert.equal(quote.extrasPriceCents, 3000);
     assert.equal(quote.totalPriceCents, 22260);
 });
+
+test('calculateMultiRoomQuote rekent stapelbedden, kinderbedden en babybedden met instelbare prijzen', () => {
+    const quote = calculateMultiRoomQuote({
+        selectedRoomIds: [1, 2],
+        checkin: '2026-11-01',
+        checkout: '2026-11-03',
+        adultCount: 2,
+        childCount: 3,
+        babyCount: 1,
+        extraBedCount: 1,
+        bunkBedCount: 1,
+        babyBedCount: 1,
+        prices: {
+            low: 8000,
+            mid: 10000,
+            high: 12000
+        },
+        rooms: [
+            { id: 1, basePriceCents: 9000 },
+            { id: 2, basePriceCents: 10000 }
+        ],
+        bedPrices: {
+            extraBedPriceCents: 1500,
+            bunkBedPriceCents: 3000,
+            babyBedPriceCents: 0
+        }
+    });
+
+    assert.equal(quote.extrasPriceCents, 9000);
+    assert.equal(quote.extrasBreakdown.extraBedTotalCents, 3000);
+    assert.equal(quote.extrasBreakdown.bunkBedTotalCents, 6000);
+    assert.equal(quote.extrasBreakdown.babyBedTotalCents, 0);
+    assert.equal(quote.totalPriceCents, 49820);
+});

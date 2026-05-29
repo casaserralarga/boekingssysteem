@@ -8,7 +8,11 @@
         },
         bedSettings: {
             extraBedCapacity: 1,
-            babyBedCapacity: 1
+            babyBedCapacity: 1,
+            bunkBedCapacity: 1,
+            extraBedPriceCents: 1500,
+            babyBedPriceCents: 0,
+            bunkBedPriceCents: 3000
         },
         rooms: [],
         bookings: [],
@@ -87,6 +91,10 @@
         bedSettingsForm: document.getElementById('bedSettingsForm'),
         extraBedCapacity: document.getElementById('extraBedCapacity'),
         babyBedCapacity: document.getElementById('babyBedCapacity'),
+        bunkBedCapacity: document.getElementById('bunkBedCapacity'),
+        extraBedPrice: document.getElementById('extraBedPrice'),
+        babyBedPrice: document.getElementById('babyBedPrice'),
+        bunkBedPrice: document.getElementById('bunkBedPrice'),
         paymentSettingsStatus: document.getElementById('paymentSettingsStatus'),
         paymentSettingsForm: document.getElementById('paymentSettingsForm'),
         stripeSecretKey: document.getElementById('stripeSecretKey'),
@@ -110,6 +118,7 @@
         editBabyCount: document.getElementById('editBabyCount'),
         editBabyBed: document.getElementById('editBabyBed'),
         editExtraBed: document.getElementById('editExtraBed'),
+        editBunkBed: document.getElementById('editBunkBed'),
         editStatus: document.getElementById('editStatus'),
         editStayPrice: document.getElementById('editStayPrice'),
         editExtras: document.getElementById('editExtras'),
@@ -423,7 +432,11 @@
         };
         state.bedSettings = data.bedSettings || {
             extraBedCapacity: 1,
-            babyBedCapacity: 1
+            babyBedCapacity: 1,
+            bunkBedCapacity: 1,
+            extraBedPriceCents: 1500,
+            babyBedPriceCents: 0,
+            bunkBedPriceCents: 3000
         };
         state.rooms = data.rooms;
         state.bookings = data.bookings;
@@ -457,9 +470,13 @@
     }
 
     function renderBedSettings() {
-        const { extraBedCapacity, babyBedCapacity } = state.bedSettings;
+        const { extraBedCapacity, babyBedCapacity, bunkBedCapacity, extraBedPriceCents, babyBedPriceCents, bunkBedPriceCents } = state.bedSettings;
         elements.extraBedCapacity.value = String(extraBedCapacity || 0);
         elements.babyBedCapacity.value = String(babyBedCapacity || 0);
+        elements.bunkBedCapacity.value = String(bunkBedCapacity || 0);
+        elements.extraBedPrice.value = centsToEurosInput(extraBedPriceCents);
+        elements.babyBedPrice.value = centsToEurosInput(babyBedPriceCents);
+        elements.bunkBedPrice.value = centsToEurosInput(bunkBedPriceCents);
         elements.bedSettingsStatus.innerHTML = `
             <div class="booking-actions">
                 <div>
@@ -470,7 +487,11 @@
             </div>
             <div class="booking-meta">
                 <div><strong>Kinderbedden</strong><br>${escapeHtml(String(extraBedCapacity || 0))}</div>
+                <div><strong>Stapelbedden</strong><br>${escapeHtml(String(bunkBedCapacity || 0))}</div>
                 <div><strong>Babybedden</strong><br>${escapeHtml(String(babyBedCapacity || 0))}</div>
+                <div><strong>Prijs kinderbed</strong><br>${escapeHtml(formatMoney(extraBedPriceCents))}</div>
+                <div><strong>Prijs stapelbed</strong><br>${escapeHtml(formatMoney(bunkBedPriceCents))}</div>
+                <div><strong>Prijs babybed</strong><br>${escapeHtml(formatMoney(babyBedPriceCents))}</div>
             </div>
         `;
     }
@@ -1155,7 +1176,11 @@
     async function saveBedSettings() {
         const payload = {
             extraBedCapacity: readAdminCount(elements.extraBedCapacity, 0),
-            babyBedCapacity: readAdminCount(elements.babyBedCapacity, 0)
+            babyBedCapacity: readAdminCount(elements.babyBedCapacity, 0),
+            bunkBedCapacity: readAdminCount(elements.bunkBedCapacity, 0),
+            extraBedPriceCents: eurosToCents(elements.extraBedPrice.value),
+            babyBedPriceCents: eurosToCents(elements.babyBedPrice.value),
+            bunkBedPriceCents: eurosToCents(elements.bunkBedPrice.value)
         };
 
         const response = await fetch('/api/admin/bed-settings', {
@@ -1201,6 +1226,7 @@
         elements.editBabyCount.value = String(booking.babyCount || 0);
         elements.editBabyBed.value = String(booking.babyBed || 0);
         elements.editExtraBed.value = String(booking.extraBed || 0);
+        elements.editBunkBed.value = String(booking.bunkBed || 0);
         elements.editStatus.value = booking.status;
         elements.editStayPrice.value = String((booking.stayPriceCents || 0) / 100);
         elements.editExtras.value = String((booking.extrasPriceCents || 0) / 100);
@@ -1306,6 +1332,7 @@
             babyCount: readAdminCount(elements.editBabyCount, 0),
             babyBed: readAdminCount(elements.editBabyBed, 0),
             extraBed: readAdminCount(elements.editExtraBed, 0),
+            bunkBed: readAdminCount(elements.editBunkBed, 0),
             stayPriceCents,
             extrasPriceCents,
             totalPriceCents,
@@ -1637,6 +1664,10 @@
 
     function eurosToCents(value) {
         return Math.round(Number(value || 0) * 100);
+    }
+
+    function centsToEurosInput(value) {
+        return String((Number(value || 0) / 100).toFixed(2)).replace(/\.00$/, '');
     }
 
     function calculateVatCents(subtotalPriceCents) {

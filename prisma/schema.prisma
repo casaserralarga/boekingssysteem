@@ -34,6 +34,7 @@ model Booking {
   checkout         String
   babyBed          Int           @default(0) @map("baby_bed")
   extraBed         Int           @default(0) @map("extra_bed")
+  bunkBed          Int           @default(0) @map("bunk_bed")
   roomsRequested   Int           @default(1) @map("rooms_requested")
   assignedRoom     Int?          @map("assigned_room")
   stayPriceCents   Int           @map("stay_price_cents")
@@ -162,6 +163,7 @@ model BookingHold {
   checkout         String
   babyBed          Int               @default(0) @map("baby_bed")
   extraBed         Int               @default(0) @map("extra_bed")
+  bunkBed          Int               @default(0) @map("bunk_bed")
   stayPriceCents   Int               @map("stay_price_cents")
   extrasPriceCents Int               @map("extras_price_cents")
   totalPriceCents  Int               @map("total_price_cents")

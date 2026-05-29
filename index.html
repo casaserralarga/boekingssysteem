@@ -62,20 +62,34 @@
                             <p id="babyCountError" class="field-error hidden"></p>
                         </label>
                         <div class="field">
-                            <label class="field">
-                                <span data-i18n="booking.babyBedLabel"></span>
-                                <input id="babyBed" type="number" min="0" max="20" value="0" inputmode="numeric">
-                                <small data-i18n="booking.babyBedNote"></small>
+                            <label class="checkbox-field">
+                                <input id="babyBed" type="checkbox" value="1">
+                                <span>
+                                    <strong data-i18n="booking.babyBedLabel"></strong>
+                                    <small id="babyBedNote" data-i18n="booking.babyBedNote"></small>
+                                </span>
                             </label>
                             <p id="babyBedError" class="field-error hidden"></p>
                         </div>
                         <div class="field">
-                            <label class="field">
-                                <span data-i18n="booking.extraBedLabel"></span>
-                                <input id="extraBed" type="number" min="0" max="20" value="0" inputmode="numeric">
-                                <small data-i18n="booking.extraBedNote"></small>
+                            <label class="checkbox-field">
+                                <input id="extraBed" type="checkbox" value="1">
+                                <span>
+                                    <strong data-i18n="booking.extraBedLabel"></strong>
+                                    <small id="extraBedNote" data-i18n="booking.extraBedNote"></small>
+                                </span>
                             </label>
                             <p id="extraBedError" class="field-error hidden"></p>
+                        </div>
+                        <div class="field">
+                            <label class="checkbox-field">
+                                <input id="bunkBed" type="checkbox" value="1">
+                                <span>
+                                    <strong data-i18n="booking.bunkBedLabel"></strong>
+                                    <small id="bunkBedNote" data-i18n="booking.bunkBedNote"></small>
+                                </span>
+                            </label>
+                            <p id="bunkBedError" class="field-error hidden"></p>
                         </div>
                     </div>
                 </div>

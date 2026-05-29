@@ -64,7 +64,8 @@ async function validateDatabaseSchema() {
                 city: true,
                 country: true,
                 babyBed: true,
-                extraBed: true
+                extraBed: true,
+                bunkBed: true
             }
         });
         await prisma.bookingHold.findFirst({
@@ -81,7 +82,8 @@ async function validateDatabaseSchema() {
                 city: true,
                 country: true,
                 babyBed: true,
-                extraBed: true
+                extraBed: true,
+                bunkBed: true
             }
         });
         await prisma.adminUser.findFirst({
@@ -129,6 +131,10 @@ async function ensureDefaults() {
         total_rooms: 6,
         extra_bed_capacity: 1,
         baby_bed_capacity: 1,
+        bunk_bed_capacity: 1,
+        extra_bed_price_cents: 1500,
+        baby_bed_price_cents: 0,
+        bunk_bed_price_cents: 3000,
         invoice_number: 1000,
         property_name: 'Casa Serra Larga'
     };
@@ -344,13 +350,22 @@ async function getBedSettings() {
     const settings = await getSettings();
     return {
         extraBedCapacity: settingInt(settings, 'extra_bed_capacity', 1),
-        babyBedCapacity: settingInt(settings, 'baby_bed_capacity', 1)
+        babyBedCapacity: settingInt(settings, 'baby_bed_capacity', 1),
+        bunkBedCapacity: settingInt(settings, 'bunk_bed_capacity', 1),
+        extraBedPriceCents: settingInt(settings, 'extra_bed_price_cents', 1500),
+        babyBedPriceCents: settingInt(settings, 'baby_bed_price_cents', 0),
+        bunkBedPriceCents: settingInt(settings, 'bunk_bed_price_cents', 3000)
     };
 }
 
-async function updateBedSettings({ extraBedCapacity, babyBedCapacity }) {
-    await upsertSetting('extra_bed_capacity', Math.max(0, Number(extraBedCapacity || 0)));
-    await upsertSetting('baby_bed_capacity', Math.max(0, Number(babyBedCapacity || 0)));
+async function updateBedSettings({ extraBedCapacity, babyBedCapacity, bunkBedCapacity, extraBedPriceCents, babyBedPriceCents, bunkBedPriceCents }) {
+    const current = await getBedSettings();
+    await upsertSetting('extra_bed_capacity', Math.max(0, Number(extraBedCapacity ?? current.extraBedCapacity)));
+    await upsertSetting('baby_bed_capacity', Math.max(0, Number(babyBedCapacity ?? current.babyBedCapacity)));
+    await upsertSetting('bunk_bed_capacity', Math.max(0, Number(bunkBedCapacity ?? current.bunkBedCapacity)));
+    await upsertSetting('extra_bed_price_cents', Math.max(0, Number(extraBedPriceCents ?? current.extraBedPriceCents)));
+    await upsertSetting('baby_bed_price_cents', Math.max(0, Number(babyBedPriceCents ?? current.babyBedPriceCents)));
+    await upsertSetting('bunk_bed_price_cents', Math.max(0, Number(bunkBedPriceCents ?? current.bunkBedPriceCents)));
     return getBedSettings();
 }
 
@@ -582,6 +597,7 @@ async function mapBooking(row) {
         checkout: row.checkout,
         babyBed: row.babyBed,
         extraBed: row.extraBed,
+        bunkBed: row.bunkBed,
         roomsRequested: selectedRooms.length || row.roomsRequested,
         assignedRoom: row.assignedRoom,
         selectedRooms,
@@ -824,6 +840,7 @@ async function listBedOccupancy(checkin, checkout) {
             checkout: true,
             babyBed: true,
             extraBed: true,
+            bunkBed: true,
             status: true
         }
     });
@@ -840,6 +857,7 @@ async function listBedOccupancy(checkin, checkout) {
             checkout: true,
             babyBed: true,
             extraBed: true,
+            bunkBed: true,
             status: true
         }
     });
@@ -852,6 +870,7 @@ async function listBedOccupancy(checkin, checkout) {
             checkout: row.checkout,
             babyBed: Number(row.babyBed || 0),
             extraBed: Number(row.extraBed || 0),
+            bunkBed: Number(row.bunkBed || 0),
             status: row.status
         })),
         ...holdRows.map((row) => ({
@@ -861,6 +880,7 @@ async function listBedOccupancy(checkin, checkout) {
             checkout: row.checkout,
             babyBed: Number(row.babyBed || 0),
             extraBed: Number(row.extraBed || 0),
+            bunkBed: Number(row.bunkBed || 0),
             status: row.status
         }))
     ];
@@ -877,7 +897,7 @@ async function getOverlappingBedUsage(checkin, checkout, { ignoreBookingId = nul
             checkout: { gt: checkin },
             ...(ignoreBookingId ? { id: { not: Number(ignoreBookingId) } } : {})
         },
-        select: { babyBed: true, extraBed: true }
+        select: { babyBed: true, extraBed: true, bunkBed: true }
     });
     const holdRows = await prisma.bookingHold.findMany({
         where: {
@@ -887,13 +907,14 @@ async function getOverlappingBedUsage(checkin, checkout, { ignoreBookingId = nul
             checkout: { gt: checkin },
             ...(ignoreHoldToken ? { holdToken: { not: ignoreHoldToken } } : {})
         },
-        select: { babyBed: true, extraBed: true }
+        select: { babyBed: true, extraBed: true, bunkBed: true }
     });
 
     return [...bookingRows, ...holdRows].reduce((usage, row) => ({
         babyBed: usage.babyBed + Number(row.babyBed || 0),
-        extraBed: usage.extraBed + Number(row.extraBed || 0)
-    }), { babyBed: 0, extraBed: 0 });
+        extraBed: usage.extraBed + Number(row.extraBed || 0),
+        bunkBed: usage.bunkBed + Number(row.bunkBed || 0)
+    }), { babyBed: 0, extraBed: 0, bunkBed: 0 });
 }
 
 async function getOverlappingBookedRooms(checkin, checkout, ignoreBookingId = null) {
@@ -1036,6 +1057,7 @@ async function mapBookingHold(row) {
         checkout: row.checkout,
         babyBed: row.babyBed,
         extraBed: row.extraBed,
+        bunkBed: row.bunkBed,
         stayPriceCents: row.stayPriceCents,
         extrasPriceCents: row.extrasPriceCents,
         ...priceBreakdown,
@@ -1083,6 +1105,7 @@ async function createBookingHold(data) {
             checkout: data.checkout,
             babyBed: Number(data.babyBed || 0),
             extraBed: Number(data.extraBed || 0),
+            bunkBed: Number(data.bunkBed || 0),
             stayPriceCents: data.stayPriceCents,
             extrasPriceCents: data.extrasPriceCents,
             totalPriceCents: data.totalPriceCents,
@@ -1157,6 +1180,7 @@ async function confirmBookingFromHold(holdToken, options = {}) {    await ensure
         selectedRoomIds: fullHold.selectedRoomIds,
         babyBed: fullHold.babyBed,
         extraBed: fullHold.extraBed,
+        bunkBed: fullHold.bunkBed,
         stayPriceCents: fullHold.stayPriceCents,
         extrasPriceCents: fullHold.extrasPriceCents,
         totalPriceCents: fullHold.totalPriceCents
@@ -1182,6 +1206,7 @@ async function confirmBookingFromHold(holdToken, options = {}) {    await ensure
     selectedRoomIds: booking.selectedRoomIds,
     babyBed: Number(booking.babyBed || 0),
     extraBed: Number(booking.extraBed || 0),
+    bunkBed: Number(booking.bunkBed || 0),
     stayPriceCents: booking.stayPriceCents,
     extrasPriceCents: booking.extrasPriceCents,
     totalPriceCents: booking.totalPriceCents,
@@ -1247,6 +1272,7 @@ async function createBooking(data) {
             checkout: data.checkout,
             babyBed: Number(data.babyBed || 0),
             extraBed: Number(data.extraBed || 0),
+            bunkBed: Number(data.bunkBed || 0),
             roomsRequested: roomIds.length,
             assignedRoom: firstRoom ? firstRoom.roomNumber : null,
             stayPriceCents: data.stayPriceCents,
@@ -1287,6 +1313,7 @@ async function updateBooking(id, data) {
             checkout: data.checkout,
             babyBed: data.babyBed === undefined ? undefined : Number(data.babyBed || 0),
             extraBed: Number(data.extraBed || 0),
+            bunkBed: Number(data.bunkBed || 0),
             roomsRequested: roomIds.length,
             assignedRoom: firstRoom ? firstRoom.roomNumber : null,
             stayPriceCents: data.stayPriceCents,

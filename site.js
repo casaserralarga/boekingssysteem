@@ -524,6 +524,99 @@ const CSLI18N = (() => {
         }
     };
 
+    const bedTranslationOverrides = {
+        nl: {
+            booking: {
+                bunkBedLabel: 'Stapelbed',
+                bunkBedNote: 'EUR 30 per nacht',
+                freeExtraNote: 'Gratis',
+                extraPricePerNight: '{price} per nacht',
+                summaryBunkBedTitle: 'Stapelbed',
+                summaryBabyBedTitle: 'Babybedje',
+                summaryExtraRateDetail: '{count} x {nightsLabel} x {price}',
+                validation: {
+                    bunkBedNeedsChildren: 'Stapelbedden kunnen alleen voor kinderen worden gebruikt.',
+                    extraAndBunkPerRoom: 'Er past per kamer maximaal 1 extra kinderbed of stapelbed.'
+                }
+            }
+        },
+        en: {
+            booking: {
+                bunkBedLabel: 'Bunk bed',
+                bunkBedNote: 'EUR 30 per night',
+                freeExtraNote: 'Free of charge',
+                extraPricePerNight: '{price} per night',
+                summaryBunkBedTitle: 'Bunk bed',
+                summaryBabyBedTitle: 'Baby cot',
+                summaryExtraRateDetail: '{count} x {nightsLabel} x {price}',
+                validation: {
+                    bunkBedNeedsChildren: 'Bunk beds can only be used for children.',
+                    extraAndBunkPerRoom: 'Only 1 extra child bed or bunk bed fits per room.'
+                }
+            }
+        },
+        pt: {
+            booking: {
+                bunkBedLabel: 'Beliche',
+                bunkBedNote: 'EUR 30 por noite',
+                freeExtraNote: 'Gratis',
+                extraPricePerNight: '{price} por noite',
+                summaryBunkBedTitle: 'Beliche',
+                summaryBabyBedTitle: 'Berco',
+                summaryExtraRateDetail: '{count} x {nightsLabel} x {price}',
+                validation: {
+                    bunkBedNeedsChildren: 'Os beliches so podem ser usados por criancas.',
+                    extraAndBunkPerRoom: 'So cabe 1 cama extra de crianca ou beliche por quarto.'
+                }
+            }
+        },
+        es: {
+            booking: {
+                bunkBedLabel: 'Litera',
+                bunkBedNote: 'EUR 30 por noche',
+                freeExtraNote: 'Gratis',
+                extraPricePerNight: '{price} por noche',
+                summaryBunkBedTitle: 'Litera',
+                summaryBabyBedTitle: 'Cuna',
+                summaryExtraRateDetail: '{count} x {nightsLabel} x {price}',
+                validation: {
+                    bunkBedNeedsChildren: 'Las literas solo pueden usarse para ninos.',
+                    extraAndBunkPerRoom: 'Solo cabe 1 cama infantil extra o litera por habitacion.'
+                }
+            }
+        },
+        fr: {
+            booking: {
+                bunkBedLabel: 'Lit superpose',
+                bunkBedNote: 'EUR 30 par nuit',
+                freeExtraNote: 'Gratuit',
+                extraPricePerNight: '{price} par nuit',
+                summaryBunkBedTitle: 'Lit superpose',
+                summaryBabyBedTitle: 'Lit bebe',
+                summaryExtraRateDetail: '{count} x {nightsLabel} x {price}',
+                validation: {
+                    bunkBedNeedsChildren: 'Les lits superposes sont reserves aux enfants.',
+                    extraAndBunkPerRoom: 'Un seul lit enfant supplementaire ou lit superpose est possible par chambre.'
+                }
+            }
+        },
+        de: {
+            booking: {
+                bunkBedLabel: 'Etagenbett',
+                bunkBedNote: 'EUR 30 pro Nacht',
+                freeExtraNote: 'Kostenlos',
+                extraPricePerNight: '{price} pro Nacht',
+                summaryBunkBedTitle: 'Etagenbett',
+                summaryBabyBedTitle: 'Babybett',
+                summaryExtraRateDetail: '{count} x {nightsLabel} x {price}',
+                validation: {
+                    bunkBedNeedsChildren: 'Etagenbetten koennen nur fuer Kinder genutzt werden.',
+                    extraAndBunkPerRoom: 'Pro Zimmer ist nur 1 zusaetzliches Kinderbett oder Etagenbett moeglich.'
+                }
+            }
+        }
+    };
+
     const unitLabels = {
         nl: {
             night: { one: 'nacht', other: 'nachten' },
@@ -586,6 +679,17 @@ const CSLI18N = (() => {
         translations[language].paymentSuccess = {
             ...translations[language].paymentSuccess,
             ...overrides.paymentSuccess
+        };
+    });
+
+    Object.entries(bedTranslationOverrides).forEach(([language, overrides]) => {
+        translations[language].booking = {
+            ...translations[language].booking,
+            ...overrides.booking,
+            validation: {
+                ...translations[language].booking.validation,
+                ...overrides.booking.validation
+            }
         };
     });
 

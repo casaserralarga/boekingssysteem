@@ -751,6 +751,16 @@ img {
     accent-color: var(--accent);
 }
 
+.checkbox-field span {
+    display: grid;
+    gap: 3px;
+}
+
+.checkbox-field small {
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
 .inline-status,
 .status-message {
     border-radius: 18px;
@@ -1153,6 +1163,18 @@ img {
 .calendar-day-cell {
     min-height: 24px;
     padding: 0;
+}
+
+.calendar-day-cell.day-available {
+    background: rgba(47, 111, 79, 0.3);
+}
+
+.calendar-day-cell.day-held {
+    background: rgba(193, 117, 40, 0.34);
+}
+
+.calendar-day-cell.day-booked {
+    background: rgba(180, 67, 56, 0.3);
 }
 
 .calendar-day-cell-head {

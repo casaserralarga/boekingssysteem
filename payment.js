@@ -218,7 +218,8 @@
             childCount: holdData.childCount || 0,
             babyCount: holdData.babyCount || 0,
             babyBed: holdData.babyBed || 0,
-            extraBed: holdData.extraBed || 0
+            extraBed: holdData.extraBed || 0,
+            bunkBed: holdData.bunkBed || 0
         };
 
         try {

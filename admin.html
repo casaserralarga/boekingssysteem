@@ -1162,7 +1162,7 @@ p {
                     <div class="section-head compact-head">
                         <div>
                             <h3>Bedden</h3>
-                            <p>Stel in hoeveel kinderbedden en babybedden beschikbaar zijn voor dezelfde periode.</p>
+                            <p>Stel in hoeveel kinderbedden, stapelbedden en babybedden beschikbaar zijn en wat ze per nacht kosten.</p>
                         </div>
                     </div>
                     <div id="bedSettingsStatus" class="dashboard-card"></div>
@@ -1173,8 +1173,24 @@ p {
                                 <input id="extraBedCapacity" type="number" min="0" max="50" inputmode="numeric" required>
                             </label>
                             <label class="field">
+                                <span>Stapelbedden</span>
+                                <input id="bunkBedCapacity" type="number" min="0" max="50" inputmode="numeric" required>
+                            </label>
+                            <label class="field">
                                 <span>Babybedden</span>
                                 <input id="babyBedCapacity" type="number" min="0" max="50" inputmode="numeric" required>
+                            </label>
+                            <label class="field">
+                                <span>Prijs kinderbed per nacht (€)</span>
+                                <input id="extraBedPrice" type="number" min="0" step="0.01" inputmode="decimal" required>
+                            </label>
+                            <label class="field">
+                                <span>Prijs stapelbed per nacht (€)</span>
+                                <input id="bunkBedPrice" type="number" min="0" step="0.01" inputmode="decimal" required>
+                            </label>
+                            <label class="field">
+                                <span>Prijs babybed per nacht (€)</span>
+                                <input id="babyBedPrice" type="number" min="0" step="0.01" inputmode="decimal" required>
                             </label>
                         </div>
                         <div class="button-row-inline admin-align-end">
@@ -1326,6 +1342,10 @@ p {
                         <label class="field">
                             <span>Extra kinderbedden</span>
                             <input id="editExtraBed" type="number" min="0" max="20" inputmode="numeric">
+                        </label>
+                        <label class="field">
+                            <span>Stapelbedden</span>
+                            <input id="editBunkBed" type="number" min="0" max="20" inputmode="numeric">
                         </label>
                     </div>
 

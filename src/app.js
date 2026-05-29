@@ -59,7 +59,8 @@ const occupancySchema = {
     childCount: countSchema,
     babyCount: countSchema,
     babyBed: bedCountSchema,
-    extraBed: bedCountSchema
+    extraBed: bedCountSchema,
+    bunkBed: bedCountSchema
 };
 const addressSchema = {
     street: z.string().trim().min(2).max(120),
@@ -173,7 +174,11 @@ const paymentSettingsSchema = z.object({
 
 const bedSettingsSchema = z.object({
     extraBedCapacity: z.coerce.number().int().min(0).max(50),
-    babyBedCapacity: z.coerce.number().int().min(0).max(50)
+    babyBedCapacity: z.coerce.number().int().min(0).max(50),
+    bunkBedCapacity: z.coerce.number().int().min(0).max(50),
+    extraBedPriceCents: z.coerce.number().int().min(0).max(1000000),
+    babyBedPriceCents: z.coerce.number().int().min(0).max(1000000),
+    bunkBedPriceCents: z.coerce.number().int().min(0).max(1000000)
 });
 
 function createApp() {
@@ -378,6 +383,7 @@ function createApp() {
             validateOccupancyForRooms(data, data.selectedRoomIds);
 
             const pricing = await db.getPricingSettings();
+            const bedSettings = await db.getBedSettings();
             const pricingRules = await db.listPricingRules();
             const rooms = await db.listRooms();
             await assertRoomsAvailable(data.selectedRoomIds, data.checkin, data.checkout);
@@ -390,10 +396,13 @@ function createApp() {
                 adultCount: data.adultCount,
                 childCount: data.childCount,
                 babyCount: data.babyCount,
+                babyBedCount: data.babyBed,
                 extraBedCount: data.extraBed,
+                bunkBedCount: data.bunkBed,
                 prices: pricing,
                 pricingRules,
-                rooms
+                rooms,
+                bedPrices: bedSettings
             });
 
             return res.json({
@@ -412,6 +421,7 @@ function createApp() {
             validateOccupancyForRooms(data, data.selectedRoomIds);
 
             const pricing = await db.getPricingSettings();
+            const bedSettings = await db.getBedSettings();
             const pricingRules = await db.listPricingRules();
             const rooms = await db.listRooms();
             await assertRoomsAvailable(data.selectedRoomIds, data.checkin, data.checkout);
@@ -424,10 +434,13 @@ function createApp() {
                 adultCount: data.adultCount,
                 childCount: data.childCount,
                 babyCount: data.babyCount,
+                babyBedCount: data.babyBed,
                 extraBedCount: data.extraBed,
+                bunkBedCount: data.bunkBed,
                 prices: pricing,
                 pricingRules,
-                rooms
+                rooms,
+                bedPrices: bedSettings
             });
 
             const booking = await db.createBooking({
@@ -451,6 +464,7 @@ function createApp() {
             validateOccupancyForRooms(data, data.selectedRoomIds);
 
             const pricing = await db.getPricingSettings();
+            const bedSettings = await db.getBedSettings();
             const pricingRules = await db.listPricingRules();
             const rooms = await db.listRooms();
             await assertRoomsAvailable(data.selectedRoomIds, data.checkin, data.checkout);
@@ -463,10 +477,13 @@ function createApp() {
                 adultCount: data.adultCount,
                 childCount: data.childCount,
                 babyCount: data.babyCount,
+                babyBedCount: data.babyBed,
                 extraBedCount: data.extraBed,
+                bunkBedCount: data.bunkBed,
                 prices: pricing,
                 pricingRules,
-                rooms
+                rooms,
+                bedPrices: bedSettings
             });
 
             let hold = await db.createBookingHold({
@@ -896,6 +913,13 @@ function buildBedCalendar(days, bedSettings, bedOccupancy) {
             bedOccupancy
         }),
         buildBedCalendarRow({
+            name: 'Stapelbedden',
+            field: 'bunkBed',
+            capacity: bedSettings.bunkBedCapacity,
+            days,
+            bedOccupancy
+        }),
+        buildBedCalendarRow({
             name: 'Babybedden',
             field: 'babyBed',
             capacity: bedSettings.babyBedCapacity,
@@ -977,7 +1001,9 @@ function validateOccupancyForRooms(data, selectedRoomIds) {
     const babyCount = Number(data.babyCount || 0);
     const extraBedCount = Number(data.extraBed || 0);
     const babyBedCount = Number(data.babyBed || 0);
+    const bunkBedCount = Number(data.bunkBed || 0);
     const payingGuests = adultCount + childCount;
+    const childExtraPlaces = extraBedCount + (bunkBedCount * 2);
 
     if (adultCount < 1) {
         const error = new Error('Er moet minimaal één volwassene meereizen.');
@@ -985,14 +1011,14 @@ function validateOccupancyForRooms(data, selectedRoomIds) {
         throw error;
     }
 
-    if (extraBedCount > childCount) {
-        const error = new Error('Extra kinderbedden kunnen alleen voor kinderen worden gebruikt.');
+    if (extraBedCount + bunkBedCount > childCount) {
+        const error = new Error('Kinderbedden en stapelbedden kunnen alleen voor kinderen worden gebruikt.');
         error.statusCode = 400;
         throw error;
     }
 
-    if (extraBedCount > roomCount) {
-        const error = new Error('Er kan maximaal één extra kinderbed per kamer worden geplaatst.');
+    if (extraBedCount + bunkBedCount > roomCount) {
+        const error = new Error('Er kan per kamer maximaal één kinderbed of stapelbed worden geplaatst.');
         error.statusCode = 400;
         throw error;
     }
@@ -1009,7 +1035,7 @@ function validateOccupancyForRooms(data, selectedRoomIds) {
         throw error;
     }
 
-    if (payingGuests > (roomCount * 2) + extraBedCount) {
+    if (payingGuests > (roomCount * 2) + childExtraPlaces) {
         const error = new Error('Selecteer meer kamers of voeg een extra kinderbed toe voor dit aantal gasten.');
         error.statusCode = 409;
         throw error;
@@ -1042,8 +1068,9 @@ async function assertBedsAvailable(data, checkin, checkout, ignoreBookingId = nu
 
     const requestedExtraBeds = Number(data.extraBed || 0);
     const requestedBabyBeds = Number(data.babyBed || 0);
+    const requestedBunkBeds = Number(data.bunkBed || 0);
 
-    if (!requestedExtraBeds && !requestedBabyBeds) {
+    if (!requestedExtraBeds && !requestedBabyBeds && !requestedBunkBeds) {
         return;
     }
 
@@ -1053,6 +1080,7 @@ async function assertBedsAvailable(data, checkin, checkout, ignoreBookingId = nu
     ]);
     const availableExtraBeds = Math.max(Number(bedSettings.extraBedCapacity || 0) - usage.extraBed, 0);
     const availableBabyBeds = Math.max(Number(bedSettings.babyBedCapacity || 0) - usage.babyBed, 0);
+    const availableBunkBeds = Math.max(Number(bedSettings.bunkBedCapacity || 0) - usage.bunkBed, 0);
 
     if (requestedExtraBeds > availableExtraBeds) {
         const error = new Error(`Er zijn in deze periode nog ${availableExtraBeds} kinderbedden beschikbaar.`);
@@ -1062,6 +1090,12 @@ async function assertBedsAvailable(data, checkin, checkout, ignoreBookingId = nu
 
     if (requestedBabyBeds > availableBabyBeds) {
         const error = new Error(`Er zijn in deze periode nog ${availableBabyBeds} babybedden beschikbaar.`);
+        error.statusCode = 409;
+        throw error;
+    }
+
+    if (requestedBunkBeds > availableBunkBeds) {
+        const error = new Error(`Er zijn in deze periode nog ${availableBunkBeds} stapelbedden beschikbaar.`);
         error.statusCode = 409;
         throw error;
     }

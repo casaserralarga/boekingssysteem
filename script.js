@@ -12,6 +12,7 @@
         babyCount: 0,
         babyBed: 0,
         extraBed: 0,
+        bunkBed: 0,
         availability: [],
         quote: null,
         selectedRoomIds: new Set(),
@@ -30,11 +31,16 @@
         babyCount: document.getElementById('babyCount'),
         babyBed: document.getElementById('babyBed'),
         extraBed: document.getElementById('extraBed'),
+        bunkBed: document.getElementById('bunkBed'),
+        babyBedNote: document.getElementById('babyBedNote'),
+        extraBedNote: document.getElementById('extraBedNote'),
+        bunkBedNote: document.getElementById('bunkBedNote'),
         adultCountError: document.getElementById('adultCountError'),
         childCountError: document.getElementById('childCountError'),
         babyCountError: document.getElementById('babyCountError'),
         babyBedError: document.getElementById('babyBedError'),
         extraBedError: document.getElementById('extraBedError'),
+        bunkBedError: document.getElementById('bunkBedError'),
         availabilityStatus: document.getElementById('availabilityStatus'),
         roomGrid: document.getElementById('roomGrid'),
         roomSelectionError: document.getElementById('roomSelectionError'),
@@ -98,6 +104,7 @@
         renderAvailability();
         renderSummary();
         renderCalendar();
+        renderBedPricingNotes();
     });
 
     function initDatePicker() {
@@ -126,8 +133,18 @@
     }
 
     function wireEvents() {
-        [elements.adultCount, elements.childCount, elements.babyCount, elements.babyBed, elements.extraBed].forEach((input) => {
+        [elements.adultCount, elements.childCount, elements.babyCount].forEach((input) => {
             input.addEventListener('input', () => {
+                syncGuestCounts();
+                updateVisibleGuestCountErrors();
+                clearFieldError(elements.roomSelectionError);
+                saveBookingDraft();
+                void refreshQuote();
+            });
+        });
+
+        [elements.babyBed, elements.extraBed, elements.bunkBed].forEach((input) => {
+            input.addEventListener('change', () => {
                 syncGuestCounts();
                 updateVisibleGuestCountErrors();
                 clearFieldError(elements.roomSelectionError);
@@ -228,6 +245,7 @@
 
             state.settings = data;
             applyBedSettingsToInputs();
+            renderBedPricingNotes();
             if (state.checkin && state.checkout) {
                 await Promise.all([loadCalendar(), refreshAvailability()]);
             } else {
@@ -302,7 +320,8 @@
                     childCount: state.childCount,
                     babyCount: state.babyCount,
                     babyBed: state.babyBed,
-                    extraBed: state.extraBed
+                    extraBed: state.extraBed,
+                    bunkBed: state.bunkBed
                 })
             });
             const data = await response.json();
@@ -495,19 +514,61 @@
             }
         });
 
-        const extrasPrice = quote?.extrasPriceCents ?? selectedRooms.reduce((sum, room) => sum + room.extrasPriceCents, 0);
-        if (extrasPrice > 0) {
-            roomItems.push({
+        if (quote?.extrasBreakdown) {
+            addExtraSummaryLine(roomItems, {
                 label: i18n.t('booking.summaryExtraBedTitle'),
-                detail: i18n.t('booking.summaryRateDetail', {
-                    nightsLabel,
-                    price: i18n.formatCurrency(nights ? extrasPrice / nights : extrasPrice)
-                }),
-                amountCents: extrasPrice
+                count: quote.extrasBreakdown.extraBedCount,
+                unitPriceCents: quote.extrasBreakdown.extraBedPriceCents,
+                totalCents: quote.extrasBreakdown.extraBedTotalCents,
+                nightsLabel
             });
+            addExtraSummaryLine(roomItems, {
+                label: i18n.t('booking.summaryBunkBedTitle'),
+                count: quote.extrasBreakdown.bunkBedCount,
+                unitPriceCents: quote.extrasBreakdown.bunkBedPriceCents,
+                totalCents: quote.extrasBreakdown.bunkBedTotalCents,
+                nightsLabel
+            });
+            addExtraSummaryLine(roomItems, {
+                label: i18n.t('booking.summaryBabyBedTitle'),
+                count: quote.extrasBreakdown.babyBedCount,
+                unitPriceCents: quote.extrasBreakdown.babyBedPriceCents,
+                totalCents: quote.extrasBreakdown.babyBedTotalCents,
+                nightsLabel
+            });
+        } else {
+            const extrasPrice = selectedRooms.reduce((sum, room) => sum + room.extrasPriceCents, 0);
+            if (extrasPrice > 0) {
+                roomItems.push({
+                    label: i18n.t('booking.summaryExtraBedTitle'),
+                    detail: i18n.t('booking.summaryRateDetail', {
+                        nightsLabel,
+                        price: i18n.formatCurrency(nights ? extrasPrice / nights : extrasPrice)
+                    }),
+                    amountCents: extrasPrice
+                });
+            }
         }
 
         return roomItems;
+    }
+
+    function addExtraSummaryLine(items, { label, count, unitPriceCents, totalCents, nightsLabel }) {
+        const amountCents = Number(totalCents || 0);
+        const itemCount = Number(count || 0);
+        if (!itemCount || amountCents <= 0) {
+            return;
+        }
+
+        items.push({
+            label,
+            detail: i18n.t('booking.summaryExtraRateDetail', {
+                count: itemCount,
+                nightsLabel,
+                price: i18n.formatCurrency(unitPriceCents)
+            }),
+            amountCents
+        });
     }
 
     function renderCalendar() {
@@ -569,6 +630,7 @@
         clearFieldError(elements.babyCountError);
         clearFieldError(elements.babyBedError);
         clearFieldError(elements.extraBedError);
+        clearFieldError(elements.bunkBedError);
         clearFieldError(elements.guestNameError);
         clearFieldError(elements.guestEmailError);
         clearFieldError(elements.guestPhoneError);
@@ -600,18 +662,25 @@
             valid = false;
         }
 
+        const bunkBedErrorKey = getBunkBedErrorKey();
+        if (bunkBedErrorKey) {
+            showFieldError(elements.bunkBedError, bunkBedErrorKey);
+            valid = false;
+        }
+
         if (state.selectedRoomIds.size) {
             const roomCount = state.selectedRoomIds.size;
             const payingGuests = state.adultCount + state.childCount;
-            if (state.extraBed > roomCount) {
-                showFieldError(elements.extraBedError, 'booking.validation.extraBedPerRoom');
+            const childExtraPlaces = state.extraBed + (state.bunkBed * 2);
+            if (state.extraBed + state.bunkBed > roomCount) {
+                showFieldError(elements.bunkBedError, 'booking.validation.extraAndBunkPerRoom');
                 valid = false;
             }
             if (state.babyBed > roomCount) {
                 showFieldError(elements.babyBedError, 'booking.validation.babyBedPerRoom');
                 valid = false;
             }
-            if (payingGuests > (roomCount * 2) + state.extraBed) {
+            if (payingGuests > (roomCount * 2) + childExtraPlaces) {
                 showFieldError(elements.roomSelectionError, 'booking.validation.occupancyRoomsRequired');
                 valid = false;
             }
@@ -702,6 +771,10 @@
         return state.babyBed > state.babyCount ? 'booking.validation.babyBedNeedsBaby' : '';
     }
 
+    function getBunkBedErrorKey() {
+        return state.extraBed + state.bunkBed > state.childCount ? 'booking.validation.bunkBedNeedsChildren' : '';
+    }
+
     function getGuestNameErrorKey() {
         return elements.guestName.value.trim().length < 2 ? 'booking.validation.nameRequired' : '';
     }
@@ -761,14 +834,9 @@
         }
         state.childCount = readCount(elements.childCount, 0);
         state.babyCount = readCount(elements.babyCount, 0);
-        state.babyBed = readCount(elements.babyBed, 0, 0, getInputMax(elements.babyBed));
-        state.extraBed = readCount(elements.extraBed, 0, 0, getInputMax(elements.extraBed));
-        if (elements.babyBed.value !== String(state.babyBed)) {
-            elements.babyBed.value = String(state.babyBed);
-        }
-        if (elements.extraBed.value !== String(state.extraBed)) {
-            elements.extraBed.value = String(state.extraBed);
-        }
+        state.babyBed = readBedCheckbox(elements.babyBed);
+        state.extraBed = readBedCheckbox(elements.extraBed);
+        state.bunkBed = readBedCheckbox(elements.bunkBed);
     }
 
     function buildBookingPayload() {
@@ -792,6 +860,7 @@
             babyCount: state.babyCount,
             babyBed: state.babyBed,
             extraBed: state.extraBed,
+            bunkBed: state.bunkBed,
             language: i18n.getLanguage(),
             savedAt: new Date().toISOString()
         };
@@ -831,8 +900,9 @@
         elements.adultCount.value = String(readDraftCount(draft.adultCount, 2));
         elements.childCount.value = String(readDraftCount(draft.childCount, 0));
         elements.babyCount.value = String(readDraftCount(draft.babyCount, 0));
-        elements.babyBed.value = String(readDraftCount(draft.babyBed === true ? 1 : draft.babyBed, 0));
-        elements.extraBed.value = String(readDraftCount(draft.extraBed === true ? 1 : draft.extraBed, 0));
+        elements.babyBed.checked = readDraftCount(draft.babyBed === true ? 1 : draft.babyBed, 0) > 0;
+        elements.extraBed.checked = readDraftCount(draft.extraBed === true ? 1 : draft.extraBed, 0) > 0;
+        elements.bunkBed.checked = readDraftCount(draft.bunkBed === true ? 1 : draft.bunkBed, 0) > 0;
 
         if (isIsoDate(draft.checkin) && isIsoDate(draft.checkout)) {
             state.checkin = draft.checkin;
@@ -866,19 +936,43 @@
         return maximum == null ? resolved : Math.min(maximum, resolved);
     }
 
-    function getInputMax(input, fallback = 20) {
-        const value = Number.parseInt(input.max, 10);
-        return Number.isFinite(value) ? value : fallback;
+    function readBedCheckbox(input) {
+        return input.disabled ? 0 : Number(input.checked);
     }
 
     function applyBedSettingsToInputs() {
         const bedSettings = state.settings?.bedSettings || {};
         const babyBedCapacity = Math.max(0, Number(bedSettings.babyBedCapacity ?? 1));
         const extraBedCapacity = Math.max(0, Number(bedSettings.extraBedCapacity ?? 1));
+        const bunkBedCapacity = Math.max(0, Number(bedSettings.bunkBedCapacity ?? 1));
 
-        elements.babyBed.max = String(babyBedCapacity);
-        elements.extraBed.max = String(extraBedCapacity);
+        updateBedCheckboxAvailability(elements.babyBed, babyBedCapacity);
+        updateBedCheckboxAvailability(elements.extraBed, extraBedCapacity);
+        updateBedCheckboxAvailability(elements.bunkBed, bunkBedCapacity);
         syncGuestCounts();
+    }
+
+    function updateBedCheckboxAvailability(input, capacity) {
+        input.disabled = capacity < 1;
+        if (input.disabled) {
+            input.checked = false;
+        }
+    }
+
+    function renderBedPricingNotes() {
+        const bedSettings = state.settings?.bedSettings || {};
+        elements.babyBedNote.textContent = formatBedPriceNote(bedSettings.babyBedPriceCents ?? 0);
+        elements.extraBedNote.textContent = formatBedPriceNote(bedSettings.extraBedPriceCents ?? 1500);
+        elements.bunkBedNote.textContent = formatBedPriceNote(bedSettings.bunkBedPriceCents ?? 3000);
+    }
+
+    function formatBedPriceNote(priceCents) {
+        const price = Number(priceCents || 0);
+        if (price <= 0) {
+            return i18n.t('booking.freeExtraNote');
+        }
+
+        return i18n.t('booking.extraPricePerNight', { price: i18n.formatCurrency(price) });
     }
 
     function syncNifVisibility() {
@@ -939,6 +1033,7 @@
         updateVisibleFieldError(elements.adultCountError, getAdultCountErrorKey());
         updateVisibleFieldError(elements.extraBedError, getExtraBedErrorKey());
         updateVisibleFieldError(elements.babyBedError, getBabyBedErrorKey());
+        updateVisibleFieldError(elements.bunkBedError, getBunkBedErrorKey());
     }
 
     function translateVisibleFieldErrors() {
