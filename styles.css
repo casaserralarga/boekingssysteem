@@ -1300,7 +1300,7 @@ img {
 
 .flatpickr-day {
     border-radius: 10px;
-    max-width: 38px;
+    max-width: none;
     line-height: 38px;
 }
 
