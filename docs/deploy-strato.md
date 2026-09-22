@@ -163,7 +163,7 @@ Als Stripe nog niet live hoeft, laat `STRIPE_SECRET_KEY=` leeg.
 Voer uit:
 
 ```bash
-sudo -u deploy bash -lc "cd /opt/casa-serra-larga && npm install --omit=dev && npx prisma generate && npx prisma db push"
+sudo -u deploy bash -lc "cd /opt/casa-serra-larga && npm install --include=dev && npx prisma generate && npx prisma db push && npm prune --omit=dev"
 ```
 
 De SQLite database komt in:
@@ -362,9 +362,10 @@ Gebruik voor updates:
 ssh root@<ipv4-van-strato-vps>
 cd /opt/casa-serra-larga
 sudo -u deploy git pull origin main
-sudo -u deploy npm install --omit=dev
+sudo -u deploy npm install --include=dev
 sudo -u deploy npx prisma generate
 sudo -u deploy npx prisma db push
+sudo -u deploy npm prune --omit=dev
 systemctl restart casa-serra-larga
 curl -f https://reserveren.jouwdomein.nl/api/health
 ```

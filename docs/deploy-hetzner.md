@@ -118,9 +118,10 @@ Voor een simpele update op dezelfde server:
 ssh deploy@<ipv4-van-server>
 cd /opt/casa-serra-larga
 git pull origin main
-npm install --omit=dev
+npm install --include=dev
 npx prisma generate
 npx prisma db push
+npm prune --omit=dev
 sudo systemctl restart casa-serra-larga
 ```
 

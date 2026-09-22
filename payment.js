@@ -1,7 +1,8 @@
 (function () {
     const i18n = window.CSLI18N;
     const BOOKING_DRAFT_KEY = 'csl-booking-draft';
-    const holdToken = new URLSearchParams(window.location.search).get('hold');
+    const CURRENT_HOLD_TOKEN_KEY = 'csl-current-hold-token';
+    const holdToken = readHoldToken();
 
     const elements = {
         paymentSummary: document.getElementById('paymentSummary'),
@@ -53,7 +54,11 @@
                 saveDraftFromHold(hold, parsed.draft);
             }
 
-            const response = await fetch(`/api/public/holds/${encodeURIComponent(holdToken)}`);
+            const response = await fetch('/api/public/hold-details', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ holdToken })
+            });
             const data = await response.json();
 
             if (!response.ok) {
@@ -84,8 +89,10 @@
             showStatus(i18n.t('payment.redirecting'));
 
             if (!checkoutUrl) {
-                const response = await fetch(`/api/public/holds/${encodeURIComponent(holdToken)}/checkout-session`, {
-                    method: 'POST'
+                const response = await fetch('/api/public/checkout-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ holdToken })
                 });
                 const data = await response.json();
 
@@ -111,8 +118,10 @@
 
         try {
             elements.bookWithoutPayment.disabled = true;
-            const response = await fetch(`/api/public/holds/${encodeURIComponent(holdToken)}/confirm`, {
-                method: 'POST'
+            const response = await fetch('/api/public/confirm-hold', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ holdToken })
             });
             const data = await response.json();
 
@@ -238,9 +247,22 @@
             if (holdToken) {
                 window.sessionStorage.removeItem(`csl-hold:${holdToken}`);
             }
+            window.sessionStorage.removeItem(CURRENT_HOLD_TOKEN_KEY);
         } catch {
             // Ignore storage cleanup failures.
         }
+    }
+
+    function readHoldToken() {
+        const urlToken = new URLSearchParams(window.location.hash.slice(1)).get('hold')
+            || new URLSearchParams(window.location.search).get('hold');
+        if (urlToken) {
+            window.sessionStorage.setItem(CURRENT_HOLD_TOKEN_KEY, urlToken);
+            window.history.replaceState(null, '', window.location.pathname);
+            return urlToken;
+        }
+
+        return window.sessionStorage.getItem(CURRENT_HOLD_TOKEN_KEY);
     }
 
     function formatFriendlyDate(value) {

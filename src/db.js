@@ -1,14 +1,14 @@
 const crypto = require('crypto');
 
 const { PrismaClient } = require('@prisma/client');
-const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
+const { PrismaBetterSQLite3 } = require('@prisma/adapter-better-sqlite3');
 
 const { config } = require('./config');
 const { generateReferenceCode } = require('./security');
 const { buildPriceBreakdown } = require('./services/pricing');
 
 const databaseUrl = process.env.DATABASE_URL || `file:${config.dbPath.replace(/\\/g, '/')}`;
-const adapter = new PrismaBetterSqlite3({ url: databaseUrl });
+const adapter = new PrismaBetterSQLite3({ url: databaseUrl });
 const prisma = new PrismaClient({ adapter });
 
 const activeBookingStatuses = ['pending', 'confirmed', 'checked-in'];

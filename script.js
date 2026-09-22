@@ -202,13 +202,13 @@
                     throw new Error(extractError(data, 'booking.errors.generic'));
                 }
 
-                window.sessionStorage.setItem(`csl-hold:${data.hold.holdToken}`, JSON.stringify({
+                window.sessionStorage.setItem(`csl-hold:${data.holdToken}`, JSON.stringify({
                     hold: data.hold,
                     checkoutUrl: data.checkoutUrl || null,
                     draft: payload
                 }));
 
-                window.location.href = `/payment?hold=${encodeURIComponent(data.hold.holdToken)}`;
+                window.location.href = `/payment#hold=${encodeURIComponent(data.holdToken)}`;
             } catch (error) {
                 showStatus(elements.formStatus, error.message || i18n.t('booking.errors.generic'), true);
             } finally {

@@ -25,6 +25,8 @@ const {
     retrieveStripeCheckoutSession
 } = require('./services/payments');
 
+const MAX_STAY_NIGHTS = 90;
+
 const booleanishSchema = z.preprocess((value) => {
     if (typeof value === 'boolean') {
         return value;
@@ -163,6 +165,10 @@ const completePaymentSchema = z.object({
     sessionId: z.string().trim().min(3)
 });
 
+const holdTokenRequestSchema = z.object({
+    holdToken: z.string().trim().regex(/^[a-f0-9]{36}$/)
+});
+
 const changePasswordSchema = z.object({
     currentPassword: z.string().min(1).max(128),
     newPassword: z.string().min(10).max(128)
@@ -197,9 +203,7 @@ function createApp() {
             req(req) {
                 return {
                     method: req.method,
-                    url: req.url,
-                    query: req.query,
-                    params: req.params,
+                    path: sanitizeRequestPath(req.url),
                     remoteAddress: req.remoteAddress,
                     remotePort: req.remotePort
                 };
@@ -502,24 +506,35 @@ function createApp() {
                 checkoutUrl = session.url;
             }
 
-            return res.status(201).json({ hold, checkoutUrl, stripeConfigured: await isStripeConfigured() });
+            return res.status(201).json({
+                hold: toPublicHold(hold),
+                holdToken: hold.holdToken,
+                checkoutUrl,
+                stripeConfigured: await isStripeConfigured()
+            });
         } catch (error) {
             next(error);
         }
     });
 
-    app.get('/api/public/holds/:token', async (req, res) => {
-        const hold = await db.getBookingHoldByToken(req.params.token);
-        if (!hold) {
-            return res.status(404).json({ message: 'Hold niet gevonden of verlopen.' });
-        }
+    app.post('/api/public/hold-details', async (req, res, next) => {
+        try {
+            const { holdToken } = holdTokenRequestSchema.parse(req.body);
+            const hold = await db.getBookingHoldByToken(holdToken);
+            if (!hold) {
+                return res.status(404).json({ message: 'Hold niet gevonden of verlopen.' });
+            }
 
-        return res.json({ hold, stripeConfigured: await isStripeConfigured() });
+            return res.json({ hold: toPublicHold(hold), stripeConfigured: await isStripeConfigured() });
+        } catch (error) {
+            next(error);
+        }
     });
 
-    app.post('/api/public/holds/:token/checkout-session', async (req, res, next) => {
+    app.post('/api/public/checkout-session', async (req, res, next) => {
         try {
-            const hold = await db.getBookingHoldByToken(req.params.token);
+            const { holdToken } = holdTokenRequestSchema.parse(req.body);
+            const hold = await db.getBookingHoldByToken(holdToken);
             if (!hold) {
                 return res.status(404).json({ message: 'Hold niet gevonden of verlopen.' });
             }
@@ -537,17 +552,18 @@ function createApp() {
         }
     });
     
-    app.post('/api/public/holds/:token/confirm', async (req, res, next) => {
+    app.post('/api/public/confirm-hold', async (req, res, next) => {
         try {
-            const hold = await db.getBookingHoldByToken(req.params.token);
+            const { holdToken } = holdTokenRequestSchema.parse(req.body);
+            const hold = await db.getBookingHoldByToken(holdToken);
 
             if (!hold) {
                 return res.status(404).json({ message: 'Hold niet gevonden of verlopen.' });
             }
 
-            await assertBedsAvailable(hold, hold.checkin, hold.checkout, null, req.params.token);
+            await assertBedsAvailable(hold, hold.checkin, hold.checkout, null, holdToken);
 
-            const booking = await db.confirmBookingFromHold(req.params.token, {
+            const booking = await db.confirmBookingFromHold(holdToken, {
                 paid: false,
                 depositPaid: false
             });
@@ -566,23 +582,15 @@ function createApp() {
             const data = completePaymentSchema.parse(req.body);
             const session = await retrieveStripeCheckoutSession(data.sessionId);
 
-            if (!session || (session.payment_status !== 'paid' && session.status !== 'complete')) {
-                return res.status(409).json({ message: 'Betaling is nog niet afgerond.' });
-            }
-
-            const holdToken = session.metadata?.holdToken;
+            const holdToken = session?.metadata?.holdToken;
             if (!holdToken) {
                 return res.status(400).json({ message: 'Geen geldige hold gekoppeld aan deze betaling.' });
             }
 
             const hold = await db.getBookingHoldByToken(holdToken);
-            if (hold && session.amount_total != null && Number(session.amount_total) !== Number(hold.totalPriceCents)) {
-                return res.status(409).json({ message: 'Het betaalde bedrag komt niet overeen met de reservering.' });
-            }
+            validatePaidStripeSession(session, hold);
 
-            if (hold) {
-                await assertBedsAvailable(hold, hold.checkin, hold.checkout, null, holdToken);
-            }
+            await assertBedsAvailable(hold, hold.checkin, hold.checkout, null, holdToken);
 
             const booking = await db.confirmBookingFromHold(holdToken);
             if (!booking) {
@@ -1187,19 +1195,69 @@ function getOriginFromReferer(value) {
 }
 
 function validateDateRange(checkin, checkout) {
-    if (checkin >= checkout) {
+    const checkinDate = parseValidIsoDate(checkin);
+    const checkoutDate = parseValidIsoDate(checkout);
+    const nights = (checkoutDate.getTime() - checkinDate.getTime()) / (24 * 60 * 60 * 1000);
+
+    if (nights <= 0) {
         const error = new Error('Checkout moet na checkin liggen.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (nights > MAX_STAY_NIGHTS) {
+        const error = new Error(`Een verblijf kan maximaal ${MAX_STAY_NIGHTS} nachten duren.`);
         error.statusCode = 400;
         throw error;
     }
 }
 
+function validatePaidStripeSession(session, hold) {
+    if (!session || session.payment_status !== 'paid' || session.mode !== 'payment') {
+        const error = new Error('Betaling is nog niet afgerond.');
+        error.statusCode = 409;
+        throw error;
+    }
+
+    if (!hold) {
+        const error = new Error('Hold niet meer beschikbaar.');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    if (session.id !== hold.stripeSessionId || session.currency !== 'eur') {
+        const error = new Error('De betaling hoort niet bij deze reservering.');
+        error.statusCode = 409;
+        throw error;
+    }
+
+    if (session.amount_total == null || Number(session.amount_total) !== Number(hold.totalPriceCents)) {
+        const error = new Error('Het betaalde bedrag komt niet overeen met de reservering.');
+        error.statusCode = 409;
+        throw error;
+    }
+}
+
 function validateInclusiveDateRange(start, end) {
+    parseValidIsoDate(start);
+    parseValidIsoDate(end);
+
     if (start > end) {
         const error = new Error('Einddatum moet op of na de startdatum liggen.');
         error.statusCode = 400;
         throw error;
     }
+}
+
+function parseValidIsoDate(value) {
+    const date = parseIsoDate(value);
+    if (Number.isNaN(date.getTime()) || formatIsoDate(date) !== value) {
+        const error = new Error('Gebruik een geldige datum in formaat YYYY-MM-DD.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    return date;
 }
 
 function nextDay(dateString) {
@@ -1221,6 +1279,42 @@ function maskSecret(value) {
     return `${secret.slice(0, 4)}${'*'.repeat(Math.max(4, secret.length - 8))}${secret.slice(-4)}`;
 }
 
+function toPublicHold(hold) {
+    return {
+        guestName: maskName(hold.guestName),
+        guestEmail: maskEmail(hold.guestEmail),
+        checkin: hold.checkin,
+        checkout: hold.checkout,
+        stayPriceCents: hold.stayPriceCents,
+        extrasPriceCents: hold.extrasPriceCents,
+        subtotalPriceCents: hold.subtotalPriceCents,
+        vatRatePercent: hold.vatRatePercent,
+        vatPriceCents: hold.vatPriceCents,
+        totalPriceCents: hold.totalPriceCents,
+        expiresAt: hold.expiresAt,
+        selectedRooms: hold.selectedRooms.map((room) => ({ id: room.id, name: room.name }))
+    };
+}
+
+function maskName(value) {
+    return String(value || '').trim().split(/\s+/).filter(Boolean).map((part) => `${part.charAt(0)}***`).join(' ');
+}
+
+function maskEmail(value) {
+    const [localPart = '', domain = ''] = String(value || '').split('@');
+    return domain ? `${localPart.charAt(0)}***@${domain}` : '';
+}
+
+function sanitizeRequestPath(value) {
+    return String(value || '')
+        .split('?')[0]
+        .replace(/[a-f0-9]{36,}/gi, '[REDACTED]');
+}
+
 module.exports = {
-    createApp
+    createApp,
+    validateDateRange,
+    validatePaidStripeSession,
+    toPublicHold,
+    sanitizeRequestPath
 };

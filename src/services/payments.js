@@ -40,8 +40,8 @@ async function createStripeCheckoutSession({ hold, roomName }) {
 
     return stripe.checkout.sessions.create({
         mode: 'payment',
-        success_url: `${config.appOrigin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${config.appOrigin}/payment?hold=${encodeURIComponent(hold.holdToken)}`,
+        success_url: `${config.appOrigin}/payment-success#session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${config.appOrigin}/payment#hold=${encodeURIComponent(hold.holdToken)}`,
         customer_email: hold.guestEmail,
         metadata: {
             holdToken: hold.holdToken,

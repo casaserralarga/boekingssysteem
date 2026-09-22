@@ -478,7 +478,7 @@ Voor deze repository is dit nu de voorkeursroute. In de map `infra/hetzner/` sta
 * installeert Node.js 22, Nginx en PM2
 * clonet deze repository op de server
 * schrijft een productie `.env`
-* draait `npm install`, `npx prisma generate` en `npx prisma db push`
+* installeert dependencies, bouwt het Prisma-schema en verwijdert daarna ontwikkeltools uit de runtime
 * start de app als systemd service
 * zet Nginx ervoor als reverse proxy
 * vraagt optioneel een Let's Encrypt certificaat aan

@@ -1,6 +1,6 @@
 (function () {
     const i18n = window.CSLI18N;
-    const sessionId = new URLSearchParams(window.location.search).get('session_id');
+    const sessionId = readSessionId();
 
     const elements = {
         successEyebrow: document.querySelector('[data-i18n="paymentSuccess.eyebrow"]'),
@@ -50,6 +50,7 @@
             }
 
             window.sessionStorage.removeItem('csl-booking-draft');
+            window.sessionStorage.removeItem('csl-current-hold-token');
             renderBooking(data.booking);
             showStatus(i18n.t('paymentSuccess.statusPaid'));
         } catch (error) {
@@ -73,5 +74,13 @@
         elements.successStatus.textContent = message;
         elements.successStatus.classList.remove('hidden', 'is-error');
         elements.successStatus.classList.toggle('is-error', isError);
+    }
+
+    function readSessionId() {
+        const value = new URLSearchParams(window.location.hash.slice(1)).get('session_id');
+        if (value) {
+            window.history.replaceState(null, '', window.location.pathname);
+        }
+        return value;
     }
 })();

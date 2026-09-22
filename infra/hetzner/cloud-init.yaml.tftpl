@@ -65,7 +65,7 @@ write_files:
       chown "$APP_USER:$APP_USER" "$APP_DIR/.env"
       chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
-      sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && npm install --omit=dev && npx prisma generate && npx prisma db push"
+      sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && npm install --include=dev && npx prisma generate && npx prisma db push && npm prune --omit=dev"
 
       systemctl daemon-reload
       systemctl enable casa-serra-larga.service
