@@ -72,6 +72,7 @@ write_files:
       systemctl restart casa-serra-larga.service
 
       ln -sfn /etc/nginx/sites-available/casa-serra-larga /etc/nginx/sites-enabled/casa-serra-larga
+      ln -sfn /etc/nginx/sites-available/default-deny /etc/nginx/sites-enabled/default-deny
       rm -f /etc/nginx/sites-enabled/default
       nginx -t
       systemctl enable nginx
@@ -154,7 +155,7 @@ write_files:
     content: |
       server {
           listen 80;
-          server_name ${public_hostname} _;
+          server_name ${public_hostname};
 
           client_max_body_size 10m;
 
@@ -168,6 +169,17 @@ write_files:
               proxy_set_header Upgrade $http_upgrade;
               proxy_set_header Connection upgrade;
           }
+      }
+  - path: /etc/nginx/sites-available/default-deny
+    permissions: '0644'
+    owner: root:root
+    content: |
+      server {
+          listen 80 default_server;
+          listen 443 ssl default_server;
+          server_name _;
+          ssl_reject_handshake on;
+          return 444;
       }
 
 runcmd:

@@ -238,10 +238,25 @@ server {
 EOF
 ```
 
+Maak een vangnet voor onbekende domeinen. Zonder dit blok toont Nginx de app ook op elk vreemd domein dat (per ongeluk of expres) naar het IP van de VPS wijst:
+
+```bash
+cat > /etc/nginx/sites-available/default-deny <<'EOF'
+server {
+    listen 80 default_server;
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
+    return 444;
+}
+EOF
+```
+
 Activeer de site:
 
 ```bash
 ln -sfn /etc/nginx/sites-available/casa-serra-larga /etc/nginx/sites-enabled/casa-serra-larga
+ln -sfn /etc/nginx/sites-available/default-deny /etc/nginx/sites-enabled/default-deny
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl restart nginx
